@@ -1,0 +1,278 @@
+#!/bin/sh
+
+
+################################################################################
+### I) Preparation for the build ###############################################
+################################################################################
+export CLFS=/mnt/clfs
+export CLFS_BUILD=${CLFS}/build
+export CLFS_CONFIGS=${CLFS}/configs
+export CLFS_LOGS=${CLFS}/logs
+export CLFS_SCRIPTS=${CLFS}/scripts
+export CLFS_SOURCES=${CLFS}/sources
+export CLFS_ROOT=${CLFS}/rootfs
+export CLFS_SYSROOT=${CLFS_ROOT}
+export CLFS_BOOT_ROOT=${CLFS}/bootfs
+export CLFS_CROSS_ROOT=${CLFS}/crossfs
+export CLFS_CROSS_SYSROOT=${CLFS_CROSS_ROOT}  #### this assignment is temporary
+
+
+mkdir -pv ${CLFS}
+rm -rf ${CLFS_BUILD} ${CLFS_ROOT} ${CLFS_BOOT_ROOT} ${CLFS_CROSS_ROOT}
+chmod 777 ${CLFS}
+
+mkdir -pv ${CLFS_BUILD} ${CLFS_CONFIGS} ${CLFS_LOGS} ${CLFS_SCRIPTS} ${CLFS_SOURCES}
+chmod -v a+wt ${CLFS_BUILD} ${CLFS_CONFIGS} ${CLFS_LOGS} ${CLFS_SCRIPTS} ${CLFS_SOURCES}
+
+
+fetch_packages () {
+    rm -rf ${CLFS_SOURCES}/{md5sums,wget-list}
+
+    tr -d '\r' < wget-list.src > ${CLFS_SOURCES}/wget-list
+    tr -d '\r' < md5sums.src > ${CLFS_SOURCES}/md5sums
+
+    pushd ${CLFS_SOURCES} > /dev/null
+	wget --input-file=wget-list --continue
+    	md5sum -c md5sums
+    popd > /dev/null
+}
+
+fetch_packages
+
+
+## Copying over scripts and additional config files
+rm -rf ${CLFS_CONFIGS}/* ${CLFS_SCRIPTS}/*
+cp -rf configs/* ${CLFS_CONFIGS}
+cp -rf scripts/* ${CLFS_SCRIPTS}
+chmod +x ${CLFS_SCRIPTS}/*
+
+
+${CLFS_SCRIPTS}/host-check.sh
+echo "Press enter to continue..."
+read _
+
+
+## Creating the CLFS build user
+rm -rf /home/clfs
+userdel clfs
+
+sudo groupadd clfs
+sudo useradd -s /bin/bash -g clfs -m -k /dev/null clfs
+
+chown -Rv clfs ${CLFS}
+
+mkdir -p /home/clfs
+
+cat > /home/clfs/.bash_profile <<'EOF'
+exec env -i HOME=${HOME} TERM=${TERM} PS1='\u:\w\$ ' /bin/bash
+EOF
+
+cat > /home/clfs/.bashrc <<'EOF'
+set +h
+umask 022
+
+## Extracts a package source archive, and runs the given callback function.
+## $1 : Package definition variable group name (i.e. GCC, LINUX, ZLIB)
+## $2 : Processing callback function, run in source directory after unzipping
+## $3 : Log file name
+EXTRACT () {
+    local PKG_VAR_GROUP_NAME=${1}
+    local PROCESS_FUNC=${2}
+    local PKG_VANITY_NAME=${3:-${PKG_VAR_GROUP_NAME}}
+
+    local PKG_VER=${PKG_VAR_GROUP_NAME}_VER
+    local PKG_VER=${!PKG_VER}
+    local PKG_DIR=${PKG_VAR_GROUP_NAME}_DIR
+    local PKG_DIR=${!PKG_DIR}
+    local PKG_ARCHIVE=${PKG_VAR_GROUP_NAME}_ARCHIVE
+    local PKG_ARCHIVE=${!PKG_ARCHIVE}
+
+    echo "Extracting package ${PKG_VANITY_NAME} (ver. ${PKG_VER}) source: '${PKG_ARCHIVE}' -> '${PKG_DIR}'"
+    pushd ${CLFS_SOURCES} > /dev/null
+
+    local STDOUT_LOG="${PKG_VANITY_NAME}.stdout.log"
+    local STDERR_LOG="${PKG_VANITY_NAME}.stderr.log"
+
+    echo "    stdout will be logged to '${STDOUT_LOG}'; stderr will be logged to '${STDERR_LOG}'"
+
+    local TMP_OUT="${TMPDIR:-/tmp}/out.$$" TMP_ERR="${TMPDIR:-/tmp}/err.$$"
+    mkfifo "${TMP_OUT}" "${TMP_ERR}"
+
+    tar xf ${PKG_ARCHIVE} && cd ${PKG_DIR} && \
+    $PROCESS_FUNC >"${TMP_OUT}" 2>"${TMP_ERR}" & \
+    tee "${CLFS_LOGS}/${STDOUT_LOG}" < "${TMP_OUT}" & \
+    tee "${CLFS_LOGS}/${STDERR_LOG}" < "${TMP_ERR}" && \
+    echo "Successfully extracted and processed package ${PKG_VANITY_NAME}!" || \
+    echo "Failed to extract or process package ${PKG_VANITY_NAME}!"
+
+    cd ${CLFS_SOURCES}
+    rm -rf ${PKG_DIR}
+
+    rm "${TMP_OUT}" "${TMP_ERR}" > /dev/null
+    popd > /dev/null
+}
+
+EOF
+
+cat >> /home/clfs/.bashrc <<EOF
+export CLFS=${CLFS}
+export CLFS_BUILD=${CLFS_BUILD}
+export CLFS_CONFIGS=${CLFS_CONFIGS}
+export CLFS_LOGS=${CLFS_LOGS}
+export CLFS_SCRIPTS=${CLFS_SCRIPTS}
+export CLFS_SOURCES=${CLFS_SOURCES}
+export CLFS_ROOT=${CLFS_ROOT}
+export CLFS_SYSROOT=${CLFS_SYSROOT}
+export CLFS_BOOT_ROOT=${CLFS_BOOT_ROOT}
+export CLFS_CROSS_ROOT=${CLFS_CROSS_ROOT}
+
+EOF
+
+cat >> /home/clfs/.bashrc <<'EOF'
+export CLFS_HOSTNAME="raspi"
+export CLFS_HOST="$(echo ${MACHTYPE} | sed "s/-[^-]*/-cross/")"
+export CLFS_TARGET="arm-linux-musleabihf"
+export CLFS_ARCH="arm"
+export CLFS_ARCH_DTS_LIST=("bcm2837-rpi-3-b.dtb")
+export CLFS_GCC_ARCH="armv8-a+crc+crypto"
+export CLFS_GCC_ARCH_HAS_FLOAT_AND_FPU=true
+export CLFS_GCC_FLOAT="hard"
+export CLFS_GCC_FPU="crypto-neon-fp-armv8"
+export CLFS_GCC_TUNE="cortex-a53"
+
+if [ "${CLFS_GCC_ARCH_HAS_FLOAT_AND_FPU}" = true ]; then
+export CLFS_GCC_FLOAT_OPT="--with-float=${CLFS_GCC_FLOAT}"
+export CLFS_GCC_FPU_OPT="--with-fpu=${CLFS_GCC_FPU}"
+fi
+
+export CLFS_CROSS_SYSROOT=${CLFS_CROSS_ROOT}/${CLFS_TARGET}
+
+MAKEFLAGS="-j$(nproc --all)"
+LC_ALL=POSIX
+PATH=${CLFS_CROSS_ROOT}/bin:/bin:/usr/bin
+export MAKEFLAGS LC_ALL PATH
+unset CFLAGS
+EOF
+
+chown -Rf clfs /home/clfs
+
+
+su - clfs <<'CLFS_USER_EOF'
+
+source ~/.bashrc
+
+
+################################################################################
+### II) Setting package version variables ######################################
+################################################################################
+## Defines a package
+## $1 : The name of the package variable group (e.g. MUSL, LINUX, GCC)
+## $2 : The package source version
+## $3 : The package source archive compression (e.g. gz, bz2, xz)
+## $4 : The package source directory prefix
+## $5 : The package source archive prefix. Overrides the PKG_DIR_PREFIX if defined
+DEFINE () {
+    local PKG_NAME=$1
+    local PKG_VER=$2
+    local PKG_COMPRESSION=$3
+    local PKG_DIR_PREFIX=$4
+    local PKG_ARCHIVE_PREFIX=$5
+
+    local PKG_DIR=${PKG_DIR_PREFIX}${PKG_VER}
+    local PKG_ARCHIVE=${PKG_ARCHIVE_PREFIX}${PKG_VER}.tar.${PKG_COMPRESSION}
+
+    [ -n "${PKG_VER}" ] && printf -v ${PKG_NAME}_VER ${PKG_VER}
+    printf -v ${PKG_NAME}_DIR ${PKG_DIR}
+    printf -v ${PKG_NAME}_ARCHIVE ${PKG_ARCHIVE}
+
+    export "${PKG_NAME}_VER" "${PKG_NAME}_DIR" "${PKG_NAME}_ARCHIVE"
+}
+
+###### "VAR_GROUP_NAME" "VERSION"   "COMPRESSION"   "DIR_PREFIX"                    "ARCHIVE_PREFIX"
+####################################################################################################
+DEFINE "BINUTILS"       "2.35"      "xz"            "binutils-"                     "binutils-"
+DEFINE "BOOTSCRIPTS"    ""          "gz"            "bootscripts-embedded-master"   "master"
+DEFINE "BUSYBOX"        "1.32.0"    "bz2"           "busybox-"                      "busybox-"
+DEFINE "BZIP2"          "1.0.8"     "gz"            "bzip2-"                        "bzip2-"
+DEFINE "DROPBEAR"       "2020.80"   "bz2"           "dropbear-"                     "dropbear-"
+DEFINE "GCC"            "10.2.0"    "xz"            "gcc-"                          "gcc-"
+DEFINE "GMP"            "6.2.0"     "xz"            "gmp-"                          "gmp-"
+DEFINE "IANA_ETC"       "20200910"  "gz"            "iana-etc-"                     "iana-etc-"
+DEFINE "LIBRESSL"       "3.2.1"     "gz"            "libressl-"                     "libressl-"
+DEFINE "LINUX"          "5.8.9"     "xz"            "linux-"                        "linux-"
+DEFINE "MPC"            "1.2.0"     "gz"            "mpc-"                          "mpc-"
+DEFINE "MPFR"           "4.1.0"     "xz"            "mpfr-"                         "mpfr-"
+DEFINE "MUSL"           "1.2.1"     "gz"            "musl-"                         "musl-"
+DEFINE "NETPLUG"        "1.2.9.2"   "bz2"           "netplug-"                      "netplug-"
+DEFINE "OPENSSH"        "8.3p1"     "gz"            "openssh-"                      "openssh-"
+DEFINE "UBOOT"          "2020.07"   "bz2"           "u-boot-"                       "u-boot-"
+DEFINE "WIRELESS_TOOLS" "29"        "gz"            "wireless_tools."               "wireless_tools."
+DEFINE "XZ"             "5.2.5"     "xz"            "xz-"                           "xz-"
+DEFINE "ZLIB"           "1.2.11"    "xz"            "zlib-"                         "zlib-"
+DEFINE "ZSTD"           "1.4.5"     "gz"            "zstd-"                         "zstd-"
+
+
+################################################################################
+### III) Preparation for the build #############################################
+################################################################################
+## Creating a FSH-compliant directory structure in CLFS_ROOT
+mkdir -pv ${CLFS_ROOT}/{bin,boot,dev,etc,home,lib,media,mnt,opt,proc,root,run,sbin,srv,tmp}
+
+mkdir -pv ${CLFS_ROOT}/etc/{opt,}
+mkdir -pv ${CLFS_ROOT}/lib/{modules,}
+mkdir -pv ${CLFS_ROOT}/usr/{bin,include,lib,libexec,sbin,share,src}
+mkdir -pv ${CLFS_ROOT}/usr/local/{bin,etc,games,include,lib,man,sbin,share,src}
+mkdir -pv ${CLFS_ROOT}/usr/share/{man,misc}
+mkdir -pv ${CLFS_ROOT}/var/{cache,lib,local,lock,log,mail,opt,spool,tmp}
+
+ln -fsv ../proc/mounts ${CLFS_ROOT}/etc/mtab
+ln -fsv ../run ${CLFS_ROOT}/var/run
+ln -fsv ../mail ${CLFS_ROOT}/var/spool/mail
+
+chmod 0750 ${CLFS_ROOT}/root
+chmod 1777 ${CLFS_ROOT}/{var/,}tmp
+
+
+## Ensuring that ${CLFS_SYSROOT}, ${CLFS_BOOT_ROOT}, and ${CLFS_CROSS_(SYS)ROOT} exist
+mkdir -pv ${CLFS_SYSROOT} ${CLFS_BOOT_ROOT} ${CLFS_CROSS_SYSROOT}
+#### this allows us to treat ${CLFS_CROSS_SYSROOT} and ${CLFS_CROSS_SYSROOT}/usr identically
+ln -fsv . ${CLFS_CROSS_SYSROOT}/usr
+
+
+## Creating the group,passwd, and lastlog files
+cat > ${CLFS_ROOT}/etc/group << "EOF"
+root:x:0:
+bin:x:1:
+sys:x:2:
+kmem:x:3:
+tty:x:4:
+tape:x:5:
+daemon:x:6:
+floppy:x:7:
+disk:x:8:
+lp:x:9:
+dialout:x:10:
+audio:x:11:
+video:x:12:
+utmp:x:13:
+usb:x:14:
+cdrom:x:15:
+EOF
+
+cat > ${CLFS_ROOT}/etc/passwd << "EOF"
+root::0:0:root:/root:/bin/ash
+EOF
+
+touch ${CLFS_ROOT}/var/log/lastlog
+chmod -v 664 ${CLFS_ROOT}/var/log/lastlog
+
+
+cd ${CLFS_SOURCES}
+
+${CLFS_SCRIPTS}/build-cross-toolchain.sh
+
+source ~/.bashrc
+
+${CLFS_SCRIPTS}/build-test-packages.sh
+
+CLFS_USER_EOF
