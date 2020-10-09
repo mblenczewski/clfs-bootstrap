@@ -23,7 +23,7 @@ NETPLUG () {
 
     make && make DESTDIR=${CLFS_ROOT} install
 }
-EXTRACT "NETPLUG" NETPLUG "extra-pkg-netplug"
+#EXTRACT "NETPLUG" NETPLUG "extra-pkg-netplug"
 
 
 ## Wireless Tools
@@ -34,20 +34,20 @@ WIRELESS_TOOLS () {
 
     make PREFIX=${CLFS_ROOT}/usr && make PREFIX=${CLFS_ROOT}/usr install
 }
-EXTRACT "WIRELESS_TOOLS" WIRELESS_TOOLS "extra-pkg-wireless-tools"
+# EXTRACT "WIRELESS_TOOLS" WIRELESS_TOOLS "extra-pkg-wireless-tools"
 
 
 ## Dropbear
 DROPBEAR () {
-    cp ${CLFS_CONFIGS}/dropbear_config.h localoptions.h
+#    cp ${CLFS_CONFIGS}/dropbear_config.h localoptions.h
 
     ./configure \
-        --prefix=${CLFS_ROOT}/usr \
+        --prefix=/usr \
         --build=${CLFS_HOST} \
         --host=${CLFS_TARGET}
 
     make PROGRAMS="dropbear dbclient dropbearkey dropbearconvert scp" && \
-    make PROGRAMS="dropbear dbclient dropbearkey dropbearconvert scp" install
+    make PROGRAMS="dropbear dbclient dropbearkey dropbearconvert scp" DESTDIR=${CLFS_ROOT} install
 
     install -dv ${CLFS_ROOT}/etc/dropbear
 }

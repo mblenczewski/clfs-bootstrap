@@ -2,6 +2,23 @@
 
 
 ################################################################################
+### 0) Parameters ##############################################################
+################################################################################
+export CLFS_HOSTNAME="raspi"
+export CLFS_TARGET="arm-linux-musleabihf"
+export CLFS_ARCH="arm"
+export CLFS_ARCH_DTS_LIST=("bcm2837-rpi-3-b.dtb")
+export CLFS_GCC_ARCH="armv8-a+crc+crypto"
+export CLFS_GCC_ARCH_HAS_FLOAT_AND_FPU='true'
+export CLFS_GCC_FLOAT="hard"
+export CLFS_GCC_FPU="crypto-neon-fp-armv8"
+export CLFS_GCC_TUNE="cortex-a53"
+
+export CLFS_CFLAGS="-O2 -pipe"
+export CLFS_CXXFLAGS="-O2 -pipe"
+
+
+################################################################################
 ### I) Preparation for the build ###############################################
 ################################################################################
 export CLFS=/mnt/clfs
@@ -124,19 +141,24 @@ export CLFS_ROOT=${CLFS_ROOT}
 export CLFS_BOOT_ROOT=${CLFS_BOOT_ROOT}
 export CLFS_CROSS_ROOT=${CLFS_CROSS_ROOT}
 
+export CLFS_HOSTNAME="${CLFS_HOSTNAME}"
+export CLFS_TARGET="${CLFS_TARGET}"
+export CLFS_ARCH="${CLFS_ARCH}"
+export CLFS_ARCH_DTS_LIST=(${CLFS_ARCH_DTS_LIST[@]})
+export CLFS_GCC_ARCH="${CLFS_GCC_ARCH}"
+export CLFS_GCC_ARCH_HAS_FLOAT_AND_FPU="${CLFS_GCC_ARCH_HAS_FLOAT_AND_FPU}"
+export CLFS_GCC_FLOAT="${CLFS_GCC_FLOAT}"
+export CLFS_GCC_FPU="${CLFS_GCC_FPU}"
+export CLFS_GCC_TUNE="${CLFS_GCC_TUNE}"
+
+unset CFLAGS CXXFLAGS
+export CFLAGS="${CLFS_CFLAGS}"
+export CXXFLAGS="${CLFS_CXXFLAGS}"
+
 EOF
 
 cat >> /home/clfs/.bashrc <<'EOF'
-export CLFS_HOSTNAME="raspi"
 export CLFS_HOST="$(echo ${MACHTYPE} | sed "s/-[^-]*/-cross/")"
-export CLFS_TARGET="arm-linux-musleabihf"
-export CLFS_ARCH="arm"
-export CLFS_ARCH_DTS_LIST=("bcm2837-rpi-3-b.dtb")
-export CLFS_GCC_ARCH="armv8-a+crc+crypto"
-export CLFS_GCC_ARCH_HAS_FLOAT_AND_FPU=true
-export CLFS_GCC_FLOAT="hard"
-export CLFS_GCC_FPU="crypto-neon-fp-armv8"
-export CLFS_GCC_TUNE="cortex-a53"
 
 if [ "${CLFS_GCC_ARCH_HAS_FLOAT_AND_FPU}" = true ]; then
 export CLFS_GCC_FLOAT_OPT="--with-float=${CLFS_GCC_FLOAT}"
@@ -149,7 +171,6 @@ MAKEFLAGS="-j$(nproc --all)"
 LC_ALL=POSIX
 PATH=${CLFS_CROSS_ROOT}/bin:/bin:/usr/bin
 export MAKEFLAGS LC_ALL PATH
-unset CFLAGS
 EOF
 
 chown -Rf clfs /home/clfs
@@ -196,13 +217,11 @@ DEFINE "DROPBEAR"       "2020.80"   "bz2"           "dropbear-"                 
 DEFINE "GCC"            "10.2.0"    "xz"            "gcc-"                          "gcc-"
 DEFINE "GMP"            "6.2.0"     "xz"            "gmp-"                          "gmp-"
 DEFINE "IANA_ETC"       "20200910"  "gz"            "iana-etc-"                     "iana-etc-"
-DEFINE "LIBRESSL"       "3.2.1"     "gz"            "libressl-"                     "libressl-"
 DEFINE "LINUX"          "5.8.9"     "xz"            "linux-"                        "linux-"
 DEFINE "MPC"            "1.2.0"     "gz"            "mpc-"                          "mpc-"
 DEFINE "MPFR"           "4.1.0"     "xz"            "mpfr-"                         "mpfr-"
 DEFINE "MUSL"           "1.2.1"     "gz"            "musl-"                         "musl-"
 DEFINE "NETPLUG"        "1.2.9.2"   "bz2"           "netplug-"                      "netplug-"
-DEFINE "OPENSSH"        "8.3p1"     "gz"            "openssh-"                      "openssh-"
 DEFINE "UBOOT"          "2020.07"   "bz2"           "u-boot-"                       "u-boot-"
 DEFINE "WIRELESS_TOOLS" "29"        "gz"            "wireless_tools."               "wireless_tools."
 DEFINE "XZ"             "5.2.5"     "xz"            "xz-"                           "xz-"
@@ -298,10 +317,6 @@ CLFS_USER_EOF
 ################################################################################
 chown -R root:root ${CLFS_ROOT} ${CLFS_BOOT_ROOT}
 chgrp 13 ${CLFS_ROOT}/var/log/lastlog
-
-chown root:sys ${CLFS_ROOT}/var/lib/sshd
-echo "Run command on target system: 'groupadd -g 50 sshd'"
-echo "Run command on target system: 'useradd -c 'sshd PrivSep' -d /var/lib/sshd -g sshd -s /bin/false -u 50 sshd'"
 
 cd ${CLFS_ROOT}
 tar cfj ${CLFS_BUILD}/clfs-rootfs.tar.xz *

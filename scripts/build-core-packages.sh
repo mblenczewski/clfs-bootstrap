@@ -71,14 +71,15 @@ EXTRACT "LINUX" LINUX "core-pkg-linux-headers"
 MUSL () {
     ./configure \
         CROSS_COMPILE=${CLFS_TARGET}- \
-        --prefix=${CLFS_ROOT}/usr \
+        --prefix=/usr \
         --build=${CLFS_HOST} \
         --host=${CLFS_TARGET} \
         --target=${CLFS_TARGET} \
-        --syslibdir=${CLFS_ROOT}/lib \
-        --enable-warnings
+	--enable-optimize \
+        --enable-warnings \
+	--disable-static
 
-    make && make install
+    make && make DESTDIR=${CLFS_ROOT} install
 
     ln -fsv ../usr/lib/libc.so ${CLFS_ROOT}/lib/ld-musl-*.so.1
 }
@@ -94,14 +95,15 @@ LIBSTDCXX () {
 
     ../libstdc++-v3/configure \
         CXXFLAGS="-g -O2 -D_GNU_SOURCE" \
-        --prefix=${CLFS_ROOT}/usr \
+        --prefix=/usr \
         --build=${CLFS_HOST} \
         --host=${CLFS_TARGET} \
         --target=${CLFS_TARGET} \
-        --disable-nls \
-        --disable-multilib
+        --disable-multilib \
+	--disable-nls \
+	--disable-static
 
-    make && make install
+    make && make DESTDIR=${CLFS_ROOT} install
 }
 EXTRACT "GCC" LIBSTDCXX "core-pkg-libstdc++"
 
@@ -109,11 +111,11 @@ EXTRACT "GCC" LIBSTDCXX "core-pkg-libstdc++"
 ## Zlib
 ZLIB () {
     ./configure \
-        --prefix=${CLFS_ROOT}/usr \
+        --prefix=/usr \
         --const \
         --shared
 
-    make && make install
+    make && make DESTDIR=${CLFS_ROOT} install
 
     rm -v ${CLFS_ROOT}/usr/lib/libz.a
     mv -v ${CLFS_ROOT}/usr/lib/libz.so.* ${CLFS_ROOT}/lib
@@ -138,7 +140,7 @@ BZIP2 () {
     ln -sv bzip2 ${CLFS_ROOT}/bin/bunzip2
     ln -sv bzip2 ${CLFS_ROOT}/bin/bzcat
 }
-EXTRACT "BZIP2" BZIP2 "core-pkg-bzip2"
+# EXTRACT "BZIP2" BZIP2 "core-pkg-bzip2"
 
 
 ## Xz
@@ -156,7 +158,7 @@ XZ () {
     mv -v ${CLFS_ROOT}/usr/lib/liblzma.so.* ${CLFS_ROOT}/lib
     ln -svf ../../lib/$(readlink ${CLFS_ROOT}/usr/lib/liblzma.so) ${CLFS_ROOT}/usr/lib/liblzma.so
 }
-EXTRACT "XZ" XZ "core-pkg-xz"
+# EXTRACT "XZ" XZ "core-pkg-xz"
 
 
 ## Zstd
@@ -167,21 +169,21 @@ ZSTD () {
     mv -v ${CLFS_ROOT}/usr/lib/libzstd.so.* ${CLFS_ROOT}/lib
     ln -sfv ../../lib/$(readlink ${CLFS_ROOT}/usr/lib/libzstd.so) ${CLFS_ROOT}/usr/lib/libzstd.so
 }
-EXTRACT "ZSTD" ZSTD "core-pkg-zstd"
+# EXTRACT "ZSTD" ZSTD "core-pkg-zstd"
 
 
 ## Libressl
 LIBRESSL () {
     ./configure \
-        --prefix=${CLFS_ROOT}/usr \
+        --prefix=/usr \
         --build=${CLFS_HOST} \
         --host=${CLFS_TARGET} \
         --libdir=${CLFS_ROOT}/lib \
-        --with-openssldir=${CLFS_ROOT}/etc/ssl
+        --with-openssldir=/etc/ssl
 
-    make && make install
+    make && make DESTDIR=${CLFS_ROOT} install
 }
-EXTRACT "LIBRESSL" LIBRESSL "core-pkg-libressl"
+# EXTRACT "LIBRESSL" LIBRESSL "core-pkg-libressl"
 
 
 ## Installing busybox

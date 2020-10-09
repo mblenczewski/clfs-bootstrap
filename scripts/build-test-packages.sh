@@ -46,8 +46,10 @@ MUSL () {
         --build=${CLFS_HOST} \
         --host=${CLFS_TARGET} \
         --target=${CLFS_TARGET} \
-        --syslibdir=${CLFS_ROOT}/lib \
-        --enable-warnings
+	--syslibdir=${CLFS_ROOT}/lib \
+        --enable-optimize \
+	--enable-warnings \
+	--disable-static
 
     make && make install
 
@@ -70,7 +72,8 @@ LIBSTDCXX () {
         --host=${CLFS_TARGET} \
         --target=${CLFS_TARGET} \
         --disable-nls \
-        --disable-multilib
+        --disable-multilib \
+	--disable-static
 
     make && make install
 }
@@ -93,37 +96,21 @@ ZLIB () {
 EXTRACT "ZLIB" ZLIB "test-pkg-zlib"
 
 
-## Libressl
-LIBRESSL () {
-    ./configure \
-        --prefix=${CLFS_ROOT}/usr \
-        --build=${CLFS_HOST} \
-        --host=${CLFS_TARGET} \
-        --libdir=${CLFS_ROOT}/lib \
-        --with-openssldir=${CLFS_ROOT}/etc/ssl
-
-    make && make install
-}
-EXTRACT "LIBRESSL" LIBRESSL "test-pkg-libressl"
-
-
-## Openssh
-OPENSSH () {
-    install -v -m700 -d ${CLFS_ROOT}/var/lib/sshd
+## Dropbear
+DROPBEAR () {
+    sed -i 's/.*mandir.*//g' Makefile.in
 
     ./configure \
         --prefix=${CLFS_ROOT}/usr \
         --build=${CLFS_HOST} \
-        --host=${CLFS_TARGET} \
-        --sysconfdir=/etc/ssh \
-        --with-md5-passwords \
-        --with-privsep-path=/var/lib/sshd
+        --host=${CLFS_TARGET}
 
-    make && make install
+    cp ${CLFS_CONFIGS}/dropbear_config.h localoptions.h
 
-    install -v -m755 contrib/ssh-copy-id ${CLFS_ROOT}/usr/bin
-    install -v -m644 contrib/ssh-copy-id.1 ${CLFS_ROOT}/usr/share/man/man1
-    install -v -m755 -d ${CLFS_ROOT}/usr/share/doc/openssh-${OPENSSH_VER}
-    install -v -m644 INSTALL LICENCE OVERVIEW README* ${CLFS_ROOT}/usr/share/doc/openssh-${OPENSSH_VER}
+    make MULTI=1 PROGRAMS="dropbear dbclient dropbearkey dropbearconvert scp" && \
+    make MULTI=1 PROGRAMS="dropbear dbclient dropbearkey dropbearconvert scp" install
+
+    install -dv ${CLFS_ROOT}/etc/dropbear
 }
-EXTRACT "OPENSSH" OPENSSH "test-pkg-openssh"
+EXTRACT "DROPBEAR" DROPBEAR "test-pkg-dropbear"
+

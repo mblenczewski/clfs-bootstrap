@@ -2,6 +2,23 @@
 
 
 ################################################################################
+### 0) Parameters ##############################################################
+################################################################################
+export CLFS_HOSTNAME="raspi"
+export CLFS_TARGET="arm-linux-musleabihf"
+export CLFS_ARCH="arm"
+export CLFS_ARCH_DTS_LIST=("bcm2837-rpi-3-b.dtb")
+export CLFS_GCC_ARCH="armv8-a+crc+crypto"
+export CLFS_GCC_ARCH_HAS_FLOAT_AND_FPU='true'
+export CLFS_GCC_FLOAT="hard"
+export CLFS_GCC_FPU="crypto-neon-fp-armv8"
+export CLFS_GCC_TUNE="cortex-a53"
+
+export CLFS_CFLAGS="-O2 -pipe"
+export CLFS_CXXFLAGS="-O2 -pipe"
+
+
+################################################################################
 ### I) Preparation for the build ###############################################
 ################################################################################
 export CLFS=/mnt/clfs
@@ -11,9 +28,9 @@ export CLFS_LOGS=${CLFS}/logs
 export CLFS_SCRIPTS=${CLFS}/scripts
 export CLFS_SOURCES=${CLFS}/sources
 export CLFS_ROOT=${CLFS}/rootfs
-export CLFS_SYSROOT=${CLFS_ROOT}
 export CLFS_BOOT_ROOT=${CLFS}/bootfs
-export CLFS_CROSS_ROOT=${CLFS}/crossfs
+export CLFS_CROSS_NAME=crossfs
+export CLFS_CROSS_ROOT=${CLFS}/${CLFS_CROSS_NAME}
 export CLFS_CROSS_SYSROOT=${CLFS_CROSS_ROOT}  #### this assignment is temporary
 
 
@@ -115,35 +132,39 @@ EXTRACT () {
 EOF
 
 cat >> /home/clfs/.bashrc <<EOF
-export CLFS=${CLFS}
-export CLFS_BUILD=${CLFS_BUILD}
-export CLFS_CONFIGS=${CLFS_CONFIGS}
-export CLFS_LOGS=${CLFS_LOGS}
-export CLFS_SCRIPTS=${CLFS_SCRIPTS}
-export CLFS_SOURCES=${CLFS_SOURCES}
-export CLFS_ROOT=${CLFS_ROOT}
-export CLFS_SYSROOT=${CLFS_SYSROOT}
-export CLFS_BOOT_ROOT=${CLFS_BOOT_ROOT}
-export CLFS_CROSS_ROOT=${CLFS_CROSS_ROOT}
+export CLFS="${CLFS}"
+export CLFS_BUILD="${CLFS_BUILD}"
+export CLFS_CONFIGS="${CLFS_CONFIGS}"
+export CLFS_LOGS="${CLFS_LOGS}"
+export CLFS_SCRIPTS="${CLFS_SCRIPTS}"
+export CLFS_SOURCES="${CLFS_SOURCES}"
+export CLFS_ROOT="${CLFS_ROOT}"
+export CLFS_BOOT_ROOT="${CLFS_BOOT_ROOT}"
+export CLFS_CROSS_NAME="${CLFS_CROSS_NAME}"
+export CLFS_CROSS_ROOT="${CLFS_CROSS_ROOT}"
+
+export CLFS_HOSTNAME="${CLFS_HOSTNAME}"
+export CLFS_TARGET="${CLFS_TARGET}"
+export CLFS_ARCH="${CLFS_ARCH}"
+export CLFS_ARCH_DTS_LIST=(${CLFS_ARCH_DTS_LIST[@]})
+export CLFS_GCC_ARCH="${CLFS_GCC_ARCH}"
+export CLFS_GCC_ARCH_HAS_FLOAT_AND_FPU="${CLFS_GCC_ARCH_HAS_FLOAT_AND_FPU}"
+export CLFS_GCC_FLOAT="${CLFS_GCC_FLOAT}"
+export CLFS_GCC_FPU="${CLFS_GCC_FPU}"
+export CLFS_GCC_TUNE="${CLFS_GCC_TUNE}"
+
+unset CFLAGS CXXFLAGS
+export CFLAGS="${CLFS_CFLAGS}"
+export CXXFLAGS="${CLFS_CXXFLAGS}"
 
 EOF
 
 cat >> /home/clfs/.bashrc <<'EOF'
-export CLFS_HOSTNAME="raspi"
 export CLFS_HOST="$(echo ${MACHTYPE} | sed "s/-[^-]*/-cross/")"
-export CLFS_TARGET="arm-linux-musleabihf"
-export CLFS_ARCH="arm"
-export CLFS_ARCH_DTS_LIST=("bcm2837-rpi-3-b.dtb")
-export CLFS_GCC_ARCH="armv8-a+crc+crypto"
-export CLFS_GCC_ARCH_HAS_FLOAT_AND_FPU=true
-export CLFS_GCC_FLOAT="hard"
-export CLFS_GCC_FPU="crypto-neon-fp-armv8"
-export CLFS_GCC_TUNE="cortex-a53"
 
-if [ "${CLFS_GCC_ARCH_HAS_FLOAT_AND_FPU}" = true ]; then
-export CLFS_GCC_FLOAT_OPT="--with-float=${CLFS_GCC_FLOAT}"
-export CLFS_GCC_FPU_OPT="--with-fpu=${CLFS_GCC_FPU}"
-fi
+[ "${CLFS_GCC_ARCH_HAS_FLOAT_AND_FPU}" = 'true' ] && \
+	export CLFS_GCC_FLOAT_OPT="--with-float=${CLFS_GCC_FLOAT}" && \
+	export CLFS_GCC_FPU_OPT="--with-fpu=${CLFS_GCC_FPU}"
 
 export CLFS_CROSS_SYSROOT=${CLFS_CROSS_ROOT}/${CLFS_TARGET}
 
@@ -151,7 +172,6 @@ MAKEFLAGS="-j$(nproc --all)"
 LC_ALL=POSIX
 PATH=${CLFS_CROSS_ROOT}/bin:/bin:/usr/bin
 export MAKEFLAGS LC_ALL PATH
-unset CFLAGS
 EOF
 
 chown -Rf clfs /home/clfs
@@ -188,28 +208,36 @@ DEFINE () {
     export "${PKG_NAME}_VER" "${PKG_NAME}_DIR" "${PKG_NAME}_ARCHIVE"
 }
 
-###### "VAR_GROUP_NAME" "VERSION"   "COMPRESSION"   "DIR_PREFIX"                    "ARCHIVE_PREFIX"
+###### "VAR_GROUP_NAME" "VERSION"	"COMP"	"DIR_PREFIX" "ARCHIVE_PREFIX"
 ####################################################################################################
-DEFINE "BINUTILS"       "2.35"      "xz"            "binutils-"                     "binutils-"
-DEFINE "BOOTSCRIPTS"    ""          "gz"            "bootscripts-embedded-master"   "master"
-DEFINE "BUSYBOX"        "1.32.0"    "bz2"           "busybox-"                      "busybox-"
-DEFINE "BZIP2"          "1.0.8"     "gz"            "bzip2-"                        "bzip2-"
-DEFINE "DROPBEAR"       "2020.80"   "bz2"           "dropbear-"                     "dropbear-"
-DEFINE "GCC"            "10.2.0"    "xz"            "gcc-"                          "gcc-"
-DEFINE "GMP"            "6.2.0"     "xz"            "gmp-"                          "gmp-"
-DEFINE "IANA_ETC"       "20200910"  "gz"            "iana-etc-"                     "iana-etc-"
-DEFINE "LIBRESSL"       "3.2.1"     "gz"            "libressl-"                     "libressl-"
-DEFINE "LINUX"          "5.8.9"     "xz"            "linux-"                        "linux-"
-DEFINE "MPC"            "1.2.0"     "gz"            "mpc-"                          "mpc-"
-DEFINE "MPFR"           "4.1.0"     "xz"            "mpfr-"                         "mpfr-"
-DEFINE "MUSL"           "1.2.1"     "gz"            "musl-"                         "musl-"
-DEFINE "NETPLUG"        "1.2.9.2"   "bz2"           "netplug-"                      "netplug-"
-DEFINE "OPENSSH"        "8.3p1"     "gz"            "openssh-"                      "openssh-"
-DEFINE "UBOOT"          "2020.07"   "bz2"           "u-boot-"                       "u-boot-"
-DEFINE "WIRELESS_TOOLS" "29"        "gz"            "wireless_tools."               "wireless_tools."
-DEFINE "XZ"             "5.2.5"     "xz"            "xz-"                           "xz-"
-DEFINE "ZLIB"           "1.2.11"    "xz"            "zlib-"                         "zlib-"
-DEFINE "ZSTD"           "1.4.5"     "gz"            "zstd-"                         "zstd-"
+DEFINE "BASH"		"5.0"		"gz"	"bash-" "bash-"
+DEFINE "BINUTILS"	"2.35"		"xz"	"binutils-" "binutils-"
+DEFINE "BOOTSCRIPTS"	""		"gz"	"bootscripts-embedded-master" "master"
+DEFINE "BUSYBOX"	"1.32.0"	"bz2"	"busybox-" "busybox-"
+DEFINE "COREUTILS"	"8.32"		"xz"	"coreutils-" "coreutils-"
+DEFINE "DROPBEAR"	"2020.80"	"bz2"	"dropbear-" "dropbear-"
+DEFINE "DIFFUTILS"	"3.7"		"xz"	"diffutils-" "diffutils-"
+DEFINE "FILE"		"5.39"		"gz"	"file-" "file-"
+DEFINE "FINDUTILS"	"4.7.0"		"xz"	"findutils-" "findutils-"
+DEFINE "GAWK"		"5.1.0"		"xz"	"gawk-" "gawk-"
+DEFINE "GCC"		"10.2.0"	"xz"	"gcc-" "gcc-"
+DEFINE "GMP"		"6.2.0"		"xz"	"gmp-" "gmp-"
+DEFINE "GREP"		"3.4"		"xz"	"grep-" "grep-"
+DEFINE "GZIP"		"1.10"		"xz"	"gzip-" "gzip-"
+DEFINE "IANA_ETC"	"20200910"	"gz"	"iana-etc-" "iana-etc-"
+DEFINE "LINUX"		"5.8.9"		"xz"	"linux-" "linux-"
+DEFINE "MAKE"		"4.3"		"gz"	"make-" "make-"
+DEFINE "MPC"		"1.2.0"		"gz"	"mpc-" "mpc-"
+DEFINE "MPFR"		"4.1.0"		"xz"	"mpfr-" "mpfr-"
+DEFINE "MUSL"		"1.2.1"		"gz"	"musl-" "musl-"
+DEFINE "M4"		"1.4.18"	"xz"	"m4-" "m4-"
+DEFINE "NCURSES"	"6.2"		"gz"	"ncurses-" "ncurses-"
+DEFINE "PATCH"		"2.7.6"		"xz"	"patch-" "patch-"
+DEFINE "SED"		"4.8"		"xz"	"sed-" "sed-"
+DEFINE "TAR"		"1.32"		"xz"	"tar-" "tar-"
+DEFINE "UBOOT"		"2020.07"	"bz2"	"u-boot-" "u-boot-"
+DEFINE "XZ"		"5.2.5"		"xz"	"xz-" "xz-"
+DEFINE "ZLIB"		"1.2.11"	"xz"	"zlib-" "zlib-"
 
 
 ################################################################################
