@@ -1,4 +1,14 @@
 #!/bin/sh
+## NOTE: not strictly posix-shell compatible, as 'local' is used in some funcs
+
+
+CONFIRM () {
+	read -p "Press enter to continue..." _
+}
+
+
+echo "Please run this script as the root user!"
+CONFIRM
 
 
 ################################################################################
@@ -41,19 +51,18 @@ mkdir -pv ${CLFS_BUILD} ${CLFS_CONFIGS} ${CLFS_LOGS} ${CLFS_SCRIPTS} ${CLFS_SOUR
 chmod -v a+wt ${CLFS_BUILD} ${CLFS_CONFIGS} ${CLFS_LOGS} ${CLFS_SCRIPTS} ${CLFS_SOURCES}
 
 
-fetch_packages () {
-    rm -rf ${CLFS_SOURCES}/{md5sums,wget-list}
+FETCH_PKGS () {
+	rm -rf ${CLFS_SOURCES}/{md5sums,wget-list}
 
-    tr -d '\r' < wget-list.src > ${CLFS_SOURCES}/wget-list
-    tr -d '\r' < md5sums.src > ${CLFS_SOURCES}/md5sums
+	tr -d '\r' < wget-list.src > ${CLFS_SOURCES}/wget-list
+	tr -d '\r' < md5sums.src > ${CLFS_SOURCES}/md5sums
 
-    pushd ${CLFS_SOURCES} > /dev/null
-	wget --input-file=wget-list --continue
-    	md5sum -c md5sums
-    popd > /dev/null
+	pushd ${CLFS_SOURCES} > /dev/null
+		wget --input-file=wget-list --continue
+		md5sum -c md5sums
+	popd > /dev/null
 }
-
-fetch_packages
+FETCH_PKGS
 
 
 ## Copying over scripts and additional config files
@@ -64,8 +73,7 @@ chmod +x ${CLFS_SCRIPTS}/*
 
 
 ${CLFS_SCRIPTS}/host-check.sh
-echo "Press enter to continue..."
-read _
+CONFIRM
 
 
 ## Creating the CLFS build user
@@ -90,42 +98,43 @@ umask 022
 ## Extracts a package source archive, and runs the given callback function.
 ## $1 : Package definition variable group name (i.e. GCC, LINUX, ZLIB)
 ## $2 : Processing callback function, run in source directory after unzipping
-## $3 : Vanity package name.
+## $3 : Vanity package name
 EXTRACT () {
-    local PKG_VAR_GROUP_NAME=$1
-    local PROCESS_FUNC=$2
-    local PKG_VANITY_NAME=${3:-${PKG_VAR_GROUP_NAME}}
+	local PKG_VAR_GROUP_NAME=$1
+	local PROCESS_FUNC=$2
+	local PKG_VANITY_NAME=${3:-${PKG_VAR_GROUP_NAME}}
 
-    local PKG_VER=${PKG_VAR_GROUP_NAME}_VER
-    local PKG_VER=${!PKG_VER}
-    local PKG_DIR=${PKG_VAR_GROUP_NAME}_DIR
-    local PKG_DIR=${!PKG_DIR}
-    local PKG_ARCHIVE=${PKG_VAR_GROUP_NAME}_ARCHIVE
-    local PKG_ARCHIVE=${!PKG_ARCHIVE}
+	local PKG_VER=${PKG_VAR_GROUP_NAME}_VER
+	local PKG_VER=${!PKG_VER}
+	local PKG_DIR=${PKG_VAR_GROUP_NAME}_DIR
+	local PKG_DIR=${!PKG_DIR}
+	local PKG_ARCHIVE=${PKG_VAR_GROUP_NAME}_ARCHIVE
+	local PKG_ARCHIVE=${!PKG_ARCHIVE}
 
-    echo "Extracting package ${PKG_VANITY_NAME} (ver. ${PKG_VER}) source: '${PKG_ARCHIVE}' -> '${PKG_DIR}'"
-    pushd ${CLFS_SOURCES} > /dev/null
+	echo "Extracting package ${PKG_VANITY_NAME} (ver. ${PKG_VER}) source: '${PKG_ARCHIVE}' -> '${PKG_DIR}'"
+	pushd ${CLFS_SOURCES} > /dev/null
 
-    local STDOUT_LOG="${PKG_VANITY_NAME}.stdout.log"
-    local STDERR_LOG="${PKG_VANITY_NAME}.stderr.log"
+	local STDOUT_LOG="${PKG_VANITY_NAME}.stdout.log"
+	local STDERR_LOG="${PKG_VANITY_NAME}.stderr.log"
 
-    echo "    stdout will be logged to '${STDOUT_LOG}'; stderr will be logged to '${STDERR_LOG}'"
+	echo "  stdout will be logged to '${STDOUT_LOG}'; stderr will be logged to '${STDERR_LOG}'"
 
-    local TMP_OUT="${TMPDIR:-/tmp}/out.$$" TMP_ERR="${TMPDIR:-/tmp}/err.$$"
-    mkfifo "${TMP_OUT}" "${TMP_ERR}"
+	local TMP_OUT="${TMPDIR:-/tmp}/out.$$"
+	local TMP_ERR="${TMPDIR:-/tmp}/err.$$"
+	mkfifo "${TMP_OUT}" "${TMP_ERR}"
 
-    tar xf ${PKG_ARCHIVE} && cd ${PKG_DIR} && \
-    $PROCESS_FUNC >"${TMP_OUT}" 2>"${TMP_ERR}" & \
-    tee "${CLFS_LOGS}/${STDOUT_LOG}" < "${TMP_OUT}" & \
-    tee "${CLFS_LOGS}/${STDERR_LOG}" < "${TMP_ERR}" && \
-    echo "Successfully extracted and processed package ${PKG_VANITY_NAME}!" || \
-    echo "Failed to extract or process package ${PKG_VANITY_NAME}!"
+	tar xf ${PKG_ARCHIVE} && cd ${PKG_DIR} && \
+	$PROCESS_FUNC >"${TMP_OUT}" 2>"${TMP_ERR}" & \
+	tee "${CLFS_LOGS}/${STDOUT_LOG}" < "${TMP_OUT}" & \
+	tee "${CLFS_LOGS}/${STDERR_LOG}" < "${TMP_ERR}" && \
+	echo "Successfully extracted and processed package ${PKG_VANITY_NAME}!" || \
+	echo "Failed to extract or process package ${PKG_VANITY_NAME}!"
 
-    cd ${CLFS_SOURCES}
-    rm -rf ${PKG_DIR}
+	cd ${CLFS_SOURCES}
+	rm -rf ${PKG_DIR}
 
-    rm "${TMP_OUT}" "${TMP_ERR}" > /dev/null
-    popd > /dev/null
+	rm "${TMP_OUT}" "${TMP_ERR}" > /dev/null
+	popd > /dev/null
 }
 
 EOF
@@ -188,45 +197,43 @@ source ~/.bashrc
 ## $1 : The name of the package variable group (e.g. MUSL, LINUX, GCC)
 ## $2 : The package source version
 ## $3 : The package source archive compression (e.g. gz, bz2, xz)
-## $4 : The package source directory prefix
-## $5 : The package source archive prefix. Overrides the PKG_DIR_PREFIX if defined
+## $4 : The package source archive prefix
+## $5 : The package source directory prefix
 DEFINE () {
-    local PKG_NAME=$1
-    local PKG_VER=$2
-    local PKG_COMPRESSION=$3
-    local PKG_DIR_PREFIX=$4
-    local PKG_ARCHIVE_PREFIX=$5
+	local PKG_NAME=$1
+	local PKG_VER=$2
+	local PKG_COMPRESSION=$3
+	local PKG_ARCHIVE_PREFIX=$4
+	local PKG_DIR_PREFIX=$5
 
-    local PKG_DIR=${PKG_DIR_PREFIX}${PKG_VER}
-    local PKG_ARCHIVE=${PKG_ARCHIVE_PREFIX}${PKG_VER}.tar.${PKG_COMPRESSION}
+	local PKG_DIR=${PKG_DIR_PREFIX}${PKG_VER}
+	local PKG_ARCHIVE=${PKG_ARCHIVE_PREFIX}${PKG_VER}.tar.${PKG_COMPRESSION}
 
-    [ -n "${PKG_VER}" ] && printf -v ${PKG_NAME}_VER ${PKG_VER}
-    printf -v ${PKG_NAME}_DIR ${PKG_DIR}
-    printf -v ${PKG_NAME}_ARCHIVE ${PKG_ARCHIVE}
+	[ -n "${PKG_VER}" ] && printf -v ${PKG_NAME}_VER ${PKG_VER}
+	printf -v ${PKG_NAME}_DIR ${PKG_DIR}
+	printf -v ${PKG_NAME}_ARCHIVE ${PKG_ARCHIVE}
 
-    export "${PKG_NAME}_VER" "${PKG_NAME}_DIR" "${PKG_NAME}_ARCHIVE"
+	export "${PKG_NAME}_VER" "${PKG_NAME}_DIR" "${PKG_NAME}_ARCHIVE"
 }
 
-###### "VAR_GROUP_NAME" "VERSION"   "COMPRESSION"   "DIR_PREFIX"                    "ARCHIVE_PREFIX"
+
+###### "NAME"		"VERSION"	"COMP"	"ARCHIVE_PREFIX"	"DIRECTORY_PREFIX"
 ####################################################################################################
-DEFINE "BINUTILS"       "2.35"      "xz"            "binutils-"                     "binutils-"
-DEFINE "BOOTSCRIPTS"    ""          "gz"            "bootscripts-embedded-master"   "master"
-DEFINE "BUSYBOX"        "1.32.0"    "bz2"           "busybox-"                      "busybox-"
-DEFINE "BZIP2"          "1.0.8"     "gz"            "bzip2-"                        "bzip2-"
-DEFINE "DROPBEAR"       "2020.80"   "bz2"           "dropbear-"                     "dropbear-"
-DEFINE "GCC"            "10.2.0"    "xz"            "gcc-"                          "gcc-"
-DEFINE "GMP"            "6.2.0"     "xz"            "gmp-"                          "gmp-"
-DEFINE "IANA_ETC"       "20200910"  "gz"            "iana-etc-"                     "iana-etc-"
-DEFINE "LINUX"          "5.8.9"     "xz"            "linux-"                        "linux-"
-DEFINE "MPC"            "1.2.0"     "gz"            "mpc-"                          "mpc-"
-DEFINE "MPFR"           "4.1.0"     "xz"            "mpfr-"                         "mpfr-"
-DEFINE "MUSL"           "1.2.1"     "gz"            "musl-"                         "musl-"
-DEFINE "NETPLUG"        "1.2.9.2"   "bz2"           "netplug-"                      "netplug-"
-DEFINE "UBOOT"          "2020.07"   "bz2"           "u-boot-"                       "u-boot-"
-DEFINE "WIRELESS_TOOLS" "29"        "gz"            "wireless_tools."               "wireless_tools."
-DEFINE "XZ"             "5.2.5"     "xz"            "xz-"                           "xz-"
-DEFINE "ZLIB"           "1.2.11"    "xz"            "zlib-"                         "zlib-"
-DEFINE "ZSTD"           "1.4.5"     "gz"            "zstd-"                         "zstd-"
+DEFINE "BINUTILS"	"2.35"		"xz"    "binutils-"		"binutils-"
+DEFINE "BOOTSCRIPTS"	""		"gz"    "master"		"bootscripts-embedded-master"
+DEFINE "BUSYBOX"	"1.32.0"	"bz2"   "busybox-"		"busybox-"
+DEFINE "DROPBEAR"	"2020.80"	"bz2"   "dropbear-"		"dropbear-"
+DEFINE "GCC"		"10.2.0"	"xz"    "gcc-"			"gcc-"
+DEFINE "GMP"		"6.2.0"		"xz"    "gmp-"			"gmp-"
+DEFINE "IANA_ETC"	"20200910"	"gz"    "iana-etc-"		"iana-etc-"
+DEFINE "LINUX"		"5.8.9"		"xz"    "linux-"		"linux-"
+DEFINE "MPC"		"1.2.0"		"gz"    "mpc-"			"mpc-"
+DEFINE "MPFR"		"4.1.0"		"xz"    "mpfr-"			"mpfr-"
+DEFINE "MUSL"		"1.2.1"		"gz"    "musl-"			"musl-"
+DEFINE "NETPLUG"	"1.2.9.2"	"bz2"   "netplug-"		"netplug-"
+DEFINE "UBOOT"		"2020.07"	"bz2"   "u-boot-"		"u-boot-"
+DEFINE "WIRELESS_TOOLS"	"29"		"gz"    "wireless_tools." 	"wireless_tools."
+DEFINE "ZLIB"		"1.2.11"	"xz"    "zlib-"			"zlib-"
 
 
 ################################################################################
@@ -327,3 +334,4 @@ tar cfj ${CLFS_BUILD}/clfs-bootfs.tar.xz *
 echo "Packaged CLFS bootfs: use 'tar pxf ${CLFS_BUILD}/clfs-bootfs.tar.xz -C targetdir' to unpack into a target directory"
 
 echo "Finished and packaged CLFS system!"
+

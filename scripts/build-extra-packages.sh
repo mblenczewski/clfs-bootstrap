@@ -38,6 +38,8 @@ EXTRACT "WIRELESS_TOOLS" WIRELESS_TOOLS "extra-pkg-wireless-tools"
 
 
 DROPBEAR () {
+	sed -i 's/.*mandir.*//g' Makefile.in
+
 	./configure \
 		--prefix=/usr \
 		--build=${CLFS_HOST} \
