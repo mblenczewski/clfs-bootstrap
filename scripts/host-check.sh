@@ -24,3 +24,4 @@ tar --version | head -n1
 makeinfo --version | head -n1
 
 echo "Finished checking host system capabilities!"
+

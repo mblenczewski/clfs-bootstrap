@@ -11,6 +11,7 @@
 ### ----------------------------------------------------------------------------
 ### - CLFS_ROOT             : Root folder for cross-compiled system
 ### - CLFS_BOOT_ROOT        : Root folder for boot-required binaries
+### - CLFS_CROSS_NAME       : Name of cross-toolchain root
 ### - CLFS_CROSS_ROOT       : Root folder for cross-toolchain
 ### - CLFS_CROSS_SYSROOT    : Sysroot for cross-toolchain
 ################################################################################
@@ -18,11 +19,13 @@
 source ~/.bashrc
 
 ## Creating passwd, group, and lastlog files
-ln -svf ../proc/mounts ${CLFS_ROOT}/etc/mtab
+ln -fsv ../proc/mounts ${CLFS_ROOT}/etc/mtab
+
 
 cat > ${CLFS_ROOT}/etc/passwd <<'EOF'
 root::0:0:root:/root:/bin/ash
 EOF
+
 
 cat > ${CLFS_ROOT}/etc/group <<'EOF'
 root:x:0:
@@ -43,224 +46,154 @@ usb:x:14:
 cdrom:x:15:
 EOF
 
+
 touch ${CLFS_ROOT}/var/log/lastlog
 chmod -v 664 ${CLFS_ROOT}/var/log/lastlog
 
+
 ## Installing libgcc
 cp -v ${CLFS_CROSS_SYSROOT}/lib/libgcc_s.so.1 ${CLFS_ROOT}/usr/lib/
+ln -fsv ../usr/lib/libgcc_s.so.1 ${CLFS_ROOT}/lib/libgcc_s.so.1
 ${CLFS_TARGET}-strip ${CLFS_ROOT}/lib/libgcc_s.so.1
 
-ln -sfv ../usr/lib/libgcc_s.so.1 ${CLFS_ROOT}/lib/libgcc_s.so.1
 
-
-## Linux API Headers
 LINUX () {
-    make mrproper
-    
-    make ARCH=${CLFS_ARCH} headers_check
-    make ARCH=${CLFS_ARCH} headers
-    
-    find usr/include -name '.*' -delete
-    rm usr/include/Makefile
-    cp -r usr/include ${CLFS_ROOT}/usr
+	make mrproper
+
+	make ARCH=${CLFS_ARCH} headers_check
+	make ARCH=${CLFS_ARCH} headers
+
+	find usr/include -name '.*' -delete
+	rm usr/include/Makefile
+	cp -r usr/include ${CLFS_ROOT}/usr
 }
 EXTRACT "LINUX" LINUX "core-pkg-linux-headers"
 
 
-## Musl libc
 MUSL () {
-    ./configure \
-        CROSS_COMPILE=${CLFS_TARGET}- \
-        --prefix=/usr \
-        --build=${CLFS_HOST} \
-        --host=${CLFS_TARGET} \
-        --target=${CLFS_TARGET} \
-	--enable-optimize \
-        --enable-warnings \
-	--disable-static
+	./configure \
+		CROSS_COMPILE=${CLFS_TARGET}- \
+		--prefix=/usr \
+		--build=${CLFS_HOST} \
+		--host=${CLFS_TARGET} \
+		--target=${CLFS_TARGET} \
+		--enable-optimize \
+		--enable-warnings \
+		-disable-static
 
-    make && make DESTDIR=${CLFS_ROOT} install
+	make && make DESTDIR=${CLFS_ROOT} install
 
-    ln -fsv ../usr/lib/libc.so ${CLFS_ROOT}/lib/ld-musl-*.so.1
+	ln -fsv ../usr/lib/libc.so ${CLFS_ROOT}/lib/ld-musl-*.so.1
 }
 EXTRACT "MUSL" MUSL "core-pkg-musl-libc"
 
 
-## Libstdc++
 LIBSTDCXX () {
-    ln -s gthr-posix.h libgcc/gthr-default.h
+	ln -s gthr-posix.h libgcc/gthr-default.h
 
-    mkdir -v libstdcxx-build
-    cd libstdcxx-build
+	mkdir -v libstdcxx-build
+	cd libstdcxx-build
 
-    ../libstdc++-v3/configure \
-        CXXFLAGS="-g -O2 -D_GNU_SOURCE" \
-        --prefix=/usr \
-        --build=${CLFS_HOST} \
-        --host=${CLFS_TARGET} \
-        --target=${CLFS_TARGET} \
-        --disable-multilib \
-	--disable-nls \
-	--disable-static
+	../libstdc++-v3/configure \
+		CXXFLAGS="-g -O2 -D_GNU_SOURCE" \
+		--prefix=/usr \
+		--build=${CLFS_HOST} \
+		--host=${CLFS_TARGET} \
+		--target=${CLFS_TARGET} \
+		--disable-multilib \
+		--disable-nls \
+		--disable-static
 
-    make && make DESTDIR=${CLFS_ROOT} install
+	make && make DESTDIR=${CLFS_ROOT} install
 }
 EXTRACT "GCC" LIBSTDCXX "core-pkg-libstdc++"
 
 
-## Zlib
 ZLIB () {
-    ./configure \
-        --prefix=/usr \
-        --const \
-        --shared
+	./configure \
+		--prefix=/usr \
+		--const \
+		--shared
 
-    make && make DESTDIR=${CLFS_ROOT} install
+	make && make DESTDIR=${CLFS_ROOT} install
 
-    rm -v ${CLFS_ROOT}/usr/lib/libz.a
-    mv -v ${CLFS_ROOT}/usr/lib/libz.so.* ${CLFS_ROOT}/lib
-    ln -sfv ../../lib/$(readlink ${CLFS_ROOT}/usr/lib/libz.so) ${CLFS_ROOT}/usr/lib/libz.so
+	rm -v ${CLFS_ROOT}/usr/lib/libz.a
+	mv -v ${CLFS_ROOT}/usr/lib/libz.so.* ${CLFS_ROOT}/lib
+	ln -sfv ../../lib/$(readlink ${CLFS_ROOT}/usr/lib/libz.so) ${CLFS_ROOT}/usr/lib/libz.so
 }
 EXTRACT "ZLIB" ZLIB "core-pkg-zlib"
 
 
-## Bzpi2
-BZIP2 () {
-    sed -i 's@\(ln -s -f \)$(PREFIX)/bin/@\1@' Makefile
-    sed -i "s@(PREFIX)/man@(PREFIX)/share/man@g" Makefile
-
-    make -f Makefile-libbz2_so && make clean && \
-    make && make PREFIX=${CLFS_ROOT}/usr install
-
-    rm -v ${CLFS_ROOT}/usr/lib/libbz2.a
-    cp -v bzip2-shared ${CLFS_ROOT}/bin/bzip2
-    cp -av libbz2.so* ${CLFS_ROOT}/lib
-    ln -fsv ../../lib/libbz2.so.1.0 ${CLFS_ROOT}/usr/lib/libbz2.so
-    rm -v ${CLFS_ROOT}/usr/bin/{bunzip2,bzcat,bzip2}
-    ln -sv bzip2 ${CLFS_ROOT}/bin/bunzip2
-    ln -sv bzip2 ${CLFS_ROOT}/bin/bzcat
-}
-# EXTRACT "BZIP2" BZIP2 "core-pkg-bzip2"
-
-
-## Xz
-XZ () {
-    ./configure \
-        --prefix=${CLFS_ROOT}/usr \
-        --build=${CLFS_HOST} \
-        --host=${CLFS_TARGET} \
-        --disable-static \
-        --docdir=${CLFS_ROOT}/usr/share/doc/xz-5.2.5
-
-    make && make install
-
-    mv -v ${CLFS_ROOT}/usr/bin/{lzma,unlzma,lzcat,xz,unxz,xzcat} ${CLFS_ROOT}/bin
-    mv -v ${CLFS_ROOT}/usr/lib/liblzma.so.* ${CLFS_ROOT}/lib
-    ln -svf ../../lib/$(readlink ${CLFS_ROOT}/usr/lib/liblzma.so) ${CLFS_ROOT}/usr/lib/liblzma.so
-}
-# EXTRACT "XZ" XZ "core-pkg-xz"
-
-
-## Zstd
-ZSTD () {
-    make && make prefix=${CLFS_ROOT}/usr install
-
-    rm -v ${CLFS_ROOT}/usr/lib/libzstd.a
-    mv -v ${CLFS_ROOT}/usr/lib/libzstd.so.* ${CLFS_ROOT}/lib
-    ln -sfv ../../lib/$(readlink ${CLFS_ROOT}/usr/lib/libzstd.so) ${CLFS_ROOT}/usr/lib/libzstd.so
-}
-# EXTRACT "ZSTD" ZSTD "core-pkg-zstd"
-
-
-## Libressl
-LIBRESSL () {
-    ./configure \
-        --prefix=/usr \
-        --build=${CLFS_HOST} \
-        --host=${CLFS_TARGET} \
-        --libdir=${CLFS_ROOT}/lib \
-        --with-openssldir=/etc/ssl
-
-    make && make DESTDIR=${CLFS_ROOT} install
-}
-# EXTRACT "LIBRESSL" LIBRESSL "core-pkg-libressl"
-
-
-## Installing busybox
 BUSYBOX () {
-    make distclean
+	make distclean
 
-    make ARCH="${CLFS_ARCH}" defconfig
+	make ARCH="${CLFS_ARCH}" defconfig
 
-    sed -i 's/\(CONFIG_\)\(.*\)\(INETD\)\(.*\)=y/# \1\2\3\4 is not set/g' .config
-    sed -i 's/\(CONFIG_IFPLUGD\)=y/# \1 is not set/' .config
+	sed -i 's/\(CONFIG_\)\(.*\)\(INETD\)\(.*\)=y/# \1\2\3\4 is not set/g' .config
+	sed -i 's/\(CONFIG_IFPLUGD\)=y/# \1 is not set/' .config
 
-    sed -i 's/\(CONFIG_FEATURE_WTMP\)=y/# \1 is not set/' .config
-    sed -i 's/\(CONFIG_FEATURE_UTMP\)=y/# \1 is not set/' .config
+	sed -i 's/\(CONFIG_FEATURE_WTMP\)=y/# \1 is not set/' .config
+	sed -i 's/\(CONFIG_FEATURE_UTMP\)=y/# \1 is not set/' .config
 
-    sed -i 's/\(CONFIG_UDPSVD\)=y/# \1 is not set/' .config
-    sed -i 's/\(CONFIG_TCPSVD\)=y/# \1 is not set/' .config
+	sed -i 's/\(CONFIG_UDPSVD\)=y/# \1 is not set/' .config
+	sed -i 's/\(CONFIG_TCPSVD\)=y/# \1 is not set/' .config
 
-    make ARCH="${CLFS_ARCH}" CROSS_COMPILE="${CLFS_TARGET}-" && \
-    make ARCH="${CLFS_ARCH}" CROSS_COMPILE="${CLFS_TARGET}-" CONFIG_PREFIX="${CLFS_ROOT}" install
+	make ARCH="${CLFS_ARCH}" CROSS_COMPILE="${CLFS_TARGET}-" && \
+	make ARCH="${CLFS_ARCH}" CROSS_COMPILE="${CLFS_TARGET}-" CONFIG_PREFIX="${CLFS_ROOT}" install
 
-    #### For building the linux kernel with modules
-    cp -v examples/depmod.pl ${CLFS_ROOT}/bin
-    chmod -v 755 ${CLFS_ROOT}/bin/depmod.pl
+	#### For building the linux kernel with modules
+	cp -v examples/depmod.pl ${CLFS_ROOT}/bin
+	chmod -v 755 ${CLFS_ROOT}/bin/depmod.pl
 }
 EXTRACT "BUSYBOX" BUSYBOX "core-pkg-busybox"
 
 
-## Installing iana-etc
 IANA_ETC () {
-    cp protocols services ${CLFS_ROOT}/etc
+	cp protocols services ${CLFS_ROOT}/etc
 }
 EXTRACT "IANA_ETC" IANA_ETC "core-pkg-iana-etc"
 
 
 ### Making the system bootable
+
 ## /etc/fstab file
 cat > ${CLFS_ROOT}/etc/fstab <<'EOF'
 # file-system  mount-point  type   options          dump  fsck
 EOF
 
 
-## Linux kernel
 LINUX () {
-    make mrproper
+	make mrproper
 
-    cp ${CLFS_CONFIGS}/linux-kernel-config .config
+	cp ${CLFS_CONFIGS}/linux-kernel-config .config
 
-    make ARCH=${CLFS_ARCH} CROSS_COMPILE=${CLFS_TARGET}- && \
-    make ARCH=${CLFS_ARCH} CROSS_COMPILE=${CLFS_TARGET}- INSTALL_MOD_PATH=${CLFS_ROOT} modules_install
+	make ARCH=${CLFS_ARCH} CROSS_COMPILE=${CLFS_TARGET}- && \
+	make ARCH=${CLFS_ARCH} CROSS_COMPILE=${CLFS_TARGET}- INSTALL_MOD_PATH=${CLFS_ROOT} modules_install
 
-    cp arch/${CLFS_ARCH}/boot/zImage ${CLFS_BOOT_ROOT}
-    for DTS in ${CLFS_ARCH_DTS_LIST[@]}
-    do
-        cp arch/${CLFS_ARCH}/boot/dts/$DTS ${CLFS_BOOT_ROOT}
-    done
+	cp arch/${CLFS_ARCH}/boot/zImage ${CLFS_BOOT_ROOT}
+	for DTS in ${CLFS_ARCH_DTS_LIST[@]}; do
+		cp arch/${CLFS_ARCH}/boot/dts/$DTS ${CLFS_BOOT_ROOT}
+	done
 }
 EXTRACT "LINUX" LINUX "linux-kernel"
 
 
-## Das U-Boot
 UBOOT () {
-    make distclean
+	make distclean
 
-    cp ${CLFS_CONFIGS}/uboot-config .config
+	cp ${CLFS_CONFIGS}/uboot-config .config
 
-    make ARCH=${CLFS_ARCH} CROSS_COMPILE=${CLFS_TARGET}-
+	make ARCH=${CLFS_ARCH} CROSS_COMPILE=${CLFS_TARGET}-
 
-    cp u-boot.bin ${CLFS_BOOT_ROOT}
+	cp u-boot.bin ${CLFS_BOOT_ROOT}
 }
 EXTRACT "UBOOT" UBOOT "uboot-bootloader"
 
 
-## Bootscripts
 BOOTSCRIPTS () {
-    make DESTDIR=${CLFS_ROOT} install-bootscripts
-    make DESTDIR=${CLFS_ROOT} install-dropbear
-    make DESTDIR=${CLFS_ROOT} install-netplug
+	make DESTDIR=${CLFS_ROOT} install-bootscripts
+	make DESTDIR=${CLFS_ROOT} install-dropbear
+	make DESTDIR=${CLFS_ROOT} install-netplug
 }
 EXTRACT "BOOTSCRIPTS" BOOTSCRIPTS "core-pkg-bootscripts"
 
@@ -374,6 +307,7 @@ hpilo!(.*)      root:root 0660 =hpilo/%1
 xvd[a-z]        root:root 0660 */lib/mdev/xvd_links
 EOF
 
+
 ## Creating /etc/profile
 cat > ${CLFS_ROOT}/etc/profile <<'EOF'
 # /etc/profile
@@ -398,6 +332,7 @@ export EDITOR='/bin/vi'
 # End /etc/profile
 EOF
 
+
 ## Creating /etc/inittab
 cat > ${CLFS_ROOT}/etc/inittab <<'EOF'
 # /etc/inittab
@@ -420,8 +355,10 @@ tty6::respawn:/sbin/getty 38400 tty6
 ::ctrlaltdel:/sbin/reboot
 EOF
 
+
 ## Setting hostname
-echo ${CLFS_HOSTNAME} > ${CLFS_ROOT}/etc/HOSTNAME
+echo ${CLFS_HOSTNAME} > ${CLFS_ROOT}/etc/hostname
+
 
 ## Customising /etc/hosts
 cat > ${CLFS_ROOT}/etc/hosts <<'EOF'
@@ -431,6 +368,7 @@ cat > ${CLFS_ROOT}/etc/hosts <<'EOF'
 
 # End /etc/hosts (no network card version)
 EOF
+
 
 ## Configuring the network script
 mkdir -pv ${CLFS_ROOT}/etc/network/if-{post-{up,down},pre-{up,down},up,down}.d
@@ -483,3 +421,4 @@ exit 0
 EOF
 
 chmod +x ${CLFS_ROOT}/usr/share/udhcpc/default.script
+

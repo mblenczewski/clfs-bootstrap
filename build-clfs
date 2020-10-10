@@ -72,8 +72,8 @@ read _
 rm -rf /home/clfs
 userdel clfs
 
-sudo groupadd clfs
-sudo useradd -s /bin/bash -g clfs -m -k /dev/null clfs
+groupadd clfs
+useradd -s /bin/bash -g clfs -m -k /dev/null clfs
 
 chown -Rv clfs ${CLFS}
 

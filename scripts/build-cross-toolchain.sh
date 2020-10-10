@@ -19,6 +19,23 @@
 source ~/.bashrc
 
 
+COMMON_BINUTILS_OPTS=(\
+	--enable-deterministic-archives \
+	--disable-separate-code \
+)
+
+
+COMMON_GCC_OPTS=(\
+	--enable-libstdcxx-time=rt \
+	--disable-assembly \
+	--disable-bootstrap \
+	--disable-gnu-indirect-function \
+	--disable-libmpx \
+	--disable-libmudflap \
+	--disable-libsanitizer \
+)
+
+
 BINUTILS_PASS1 () {
 	mkdir -v binutils-build
 	cd binutils-build
@@ -29,10 +46,11 @@ BINUTILS_PASS1 () {
 		--build=${CLFS_HOST} \
 		--host=${CLFS_HOST} \
 		--target=${CLFS_TARGET} \
+		--disable-multilib \
 		--disable-nls \
 		--disable-shared \
-		--disable-multilib \
-		--disable-werror
+		--disable-werror \
+		${COMMON_BINUTILS_OPTS[@]}
 
 	make && make install
 }
@@ -56,24 +74,24 @@ GCC_PASS1 () {
 		--build=${CLFS_HOST} \
 		--host=${CLFS_HOST} \
 		--target=${CLFS_TARGET} \
+		--with-arch=${CLFS_GCC_ARCH} \
+		--with-tune=${CLFS_GCC_TUNE} \
 		--with-newlib \
 		--without-headers \
 		--enable-initfini-array \
-		--disable-nls \
-		--disable-shared \
-		--disable-multilib \
+		--enable-languages=c,c++ \
 		--disable-decimal-float \
-		--disable-threads \
 		--disable-libatomic \
 		--disable-libgomp \
 		--disable-libquadmath \
-		--disable-libsanitizer \
 		--disable-libssp \
-		--disable-libvtv \
 		--disable-libstdcxx \
-		--enable-languages=c,c++ \
-		--with-arch=${CLFS_ARM_ARCH} \
-		--with-tune=${CLFS_GCC_TUNE} \
+		--disable-libvtv \
+		--disable-multilib \
+		--disable-nls \
+		--disable-shared \
+		--disable-threads \
+		${COMMON_GCC_OPTS[@]} \
 		${CLFS_GCC_FLOAT_OPT} ${CLFS_GCC_FPU_OPT}
 
 	make all-gcc all-target-libgcc && make install-gcc install-target-libgcc
@@ -101,13 +119,14 @@ EXTRACT "LINUX" LINUX "toolchain-linux-headers"
 MUSL () {
 	./configure \
 		CROSS_COMPILE=${CLFS_TARGET}- \
-		--prefix=${CLFS_CROSS_SYSROOT} \
+		--prefix=/ \
 		--build=${CLFS_HOST} \
 		--host=${CLFS_HOST} \
-		--target=${CLFS_TARGET} \
-		--syslibdir=${CLFS_CROSS_SYSROOT}/lib
+		--target=${CLFS_TARGET}
 
 	make && make DESTDIR=${CLFS_CROSS_SYSROOT} install
+
+	ln -fsv libc.so ${CLFS_CROSS_SYSROOT}/lib/ld-musl-*.so.1
 
 	${CLFS_CROSS_ROOT}/libexec/gcc/${CLFS_TARGET}/${GCC_VER}/install-tools/mkheaders
 }
@@ -119,213 +138,18 @@ LIBSTDCXX_PASS1 () {
 	cd libstdcxx-build
 
 	../libstdc++-v3/configure \
-		--prefix=${CLFS_CROSS_SYSROOT} \
+		--prefix=/ \
 		--build=${CLFS_HOST} \
 		--host=${CLFS_HOST} \
 		--target=${CLFS_TARGET} \
-		--disable-nls \
-		--disable-multilib \
+		--with-gxx-include-dir=${CLFS_CROSS_SYSROOT}/include/c++/${GCC_VER} \
 		--disable-libstdcxx-pch \
-		--with-gxx-include-dir=${CLFS_CROSS_SYSROOT}/include/c++/${GCC_VER}
+		--disable-multilib \
+		--disable-nls
 
-	make && make install
+	make && make DESTDIR=${CLFS_CROSS_SYSROOT} install
 }
 EXTRACT "GCC" LIBSTDCXX_PASS1 "toolchain-libstdc++-pass1"
-
-
-M4 () {
-	sed -i 's/IO_ftrylockfile/IO_EOF_SEEN/' lib/*.c
-	echo "#define _IO_IN_BACKUP 0x100" >> lib/stdio-impl.h
-
-	./configure \
-		--prefix=${CLFS_CROSS_ROOT} \
-		--build=${CLFS_HOST} \
-		--host=${CLFS_HOST}
-
-	make && make install
-}
-#EXTRACT "M4" M4 "toolchain-m4"
-
-
-NCURSES () {
-	sed -i s/mawk// configure
-
-	mkdir ncurses-build
-	pushd ncurses-build > /dev/null
-		../configure
-		make -C include
-		make -C progs tic
-	popd > /dev/null
-
-	./configure \
-		--prefix=${CLFS_CROSS_ROOT} \
-		--build=${CLFS_HOST} \
-		--host=${CLFS_HOST} \
-		--with-manpage-format=normal \
-		--with-shared \
-		--without-debuf \
-		--without-ada \
-		--without-normal \
-		--with-widec
-
-	make && make TIC_PATH=$(pwd)/ncurses-build/progs/tic install
-	echo "INPUT(-lncursesw)" > ${CLFS_CROSS_ROOT}/lib/libncurses.so
-
-	ln -sfv ../lib/$(readlink ${CLFS_CROSS_ROOT}/lib/libncursesw.so) ${CLFS_CROSS_ROOT}/lib/libncursesw.so
-}
-#EXTRACT "NCURSES" NCURSES "toolchain-ncurses"
-
-
-BASH () {
-	./configure \
-		--prefix=${CLFS_CROSS_ROOT} \
-		--build=${CLFS_HOST} \
-		--host=${CLFS_HOST} \
-		--without-bash-malloc
-
-	make && make install
-
-	ln -fsv bash ${CLFS_CROSS_ROOT}/bin/sh
-}
-#EXTRACT "BASH" BASH "toolchain-bash"
-
-
-COREUTILS () {
-	./configure \
-		--prefix=${CLFS_CROSS_ROOT} \
-		--build=${CLFS_HOST} \
-		--host=${CLFS_HOST} \
-		--enable-install-program=hostname \
-		--enable-no-install-program=kill,uptime
-
-	make && make install
-
-	mv -v ${CLFS_CROSS_ROOT}/bin/{cat,chgrp,chmod,chown,cp,date,dd,df,echo} ${CLFS_CROSS_ROOT}/bin
-	mv -v ${CLFS_CROSS_ROOT}/bin/{false,ln,ls,mkdir,mknod,mv,pwd,rm} ${CLFS_CROSS_ROOT}/bin
-	mv -v ${CLFS_CROSS_ROOT}/bin/{rmdir,stty,sync,true,uname} ${CLFS_CROSS_ROOT}/bin
-	mv -v ${CLFS_CROSS_ROOT}/bin/{head,nice,sleep,touch} ${CLFS_CROSS_ROOT}/bin
-	mv -v ${CLFS_CROSS_ROOT}/bin/chroot ${CLFS_CROSS_ROOT}/sbin
-	mkdir -pv ${CLFS_CROSS_ROOT}/share/man/man8
-	mv -v ${CLFS_CROSS_ROOT}/share/man/man1/chroot.1 ${CLFS_CROSS_ROOT}/share/man/man8/chroot.8
-	sed -i 's/"1"/"8"/' ${CLFS_CROSS_ROOT}/share/man/man8/chroot.8
-}
-#EXTRACT "COREUTILS" COREUTILS "toolchain-coreutils"
-
-
-DIFFUTILS () {
-	./configure \
-		--prefix=${CLFS_CROSS_ROOT} \
-		--build=${CLFS_HOST} \
-		--host=${CLFS_HOST}
-
-	make && make install
-}
-#EXTRACT "DIFFUTILS" DIFFUTILS "toolchain-diffutils"
-
-
-FILE () {
-	./configure \
-		--prefix=${CLFS_CROSS_ROOT} \
-		--build=${CLFS_HOST} \
-		--host=${CLFS_HOST}
-
-	make && make install
-}
-#EXTRACT "FILE" FILE "toolchain-file"
-
-
-FINDUTILS () {
-	./configure \
-		--prefix=${CLFS_CROSS_ROOT} \
-		--build=${CLFS_HOST} \
-		--host=${CLFS_HOST}
-
-	make && make install
-
-	sed -i 's|find:=${BINDIR}|find:=/${CLFS_CROSS_NAME}/bin|' ${CLFS_CROSS_ROOT}/bin/updatedb
-}
-#EXTRACT "FINDUTILS" FINDUTILS "toolchain-findutils"
-
-
-GAWK () {
-	sed -i 's/extras//' Makefile.in
-
-	./configure \
-		--prefix=${CLFS_CROSS_ROOT} \
-		--build=${CLFS_HOST} \
-		--host=${CLFS_HOST}
-
-	make && make install
-}
-#EXTRACT "GAWK" GAWK "toolchain-gawk"
-
-
-GZIP () {
-	./configure \
-		--prefix=${CLFS_CROSS_ROOT} \
-		--build=${CLFS_HOST} \
-		--host=${CLFS_HOST}
-
-	make && make install
-}
-#EXTRACT "GZIP" GZIP "toolchain-gzip"
-
-
-MAKE () {
-	./configure \
-		--prefix=${CLFS_CROSS_ROOT} \
-		--build=${CLFS_HOST} \
-		--host=${CLFS_HOST} \
-		--without-guile
-
-	make && make install
-}
-#EXTRACT "MAKE" MAKE "toolchain-make"
-
-
-PATCH () {
-	./configure \
-		--prefix=${CLFS_CROSS_ROOT} \
-		--build=${CLFS_HOST} \
-		--host=${CLFS_HOST}
-
-	make && make install
-}
-#EXTRACT "PATCH" PATCH "toolchain-patch"
-
-
-SED () {
-	./configure \
-		--prefix=${CLFS_CROSS_ROOT} \
-		--build=${CLFS_HOST} \
-		--host=${CLFS_HOST}
-
-	make && make install
-}
-#EXTRACT "SED" SED "toolchain-sed"
-
-
-TAR () {
-	./configure \
-		--prefix=${CLFS_CROSS_ROOT} \
-		--build=${CLFS_HOST} \
-		--host=${CLFS_HOST}
-
-	make && make install
-}
-#EXTRACT "TAR" TAR "toolchain-tar"
-
-
-XZ () {
-	./configure \
-		--prefix=${CLFS_CROSS_ROOT} \
-		--build=${CLFS_HOST} \
-		--host=${CLFS_HOST} \
-		--disable-static
-
-	make && make install
-}
-#EXTRACT "XZ" XZ "toolchain-xz"
 
 
 BINUTILS_PASS2 () {
@@ -339,10 +163,11 @@ BINUTILS_PASS2 () {
 		--build=${CLFS_HOST} \
 		--host=${CLFS_HOST} \
 		--target=${CLFS_TARGET} \
-		--disable-nls \
 		--enable-shared \
 		--disable-multilib \
-		--disable-werror
+		--disable-nls \
+		--disable-werror \
+		${COMMON_BINUTILS_OPTS[@]}
 
 	make && make install
 }
@@ -371,13 +196,15 @@ GCC_PASS2 () {
 		--host=${CLFS_HOST} \
 		CC_FOR_TARGET=${CLFS_TARGET}-gcc \
 		--target=${CLFS_TARGET} \
-		--enable-initfini-array \
-		--disable-nls \
-		--disable-multilib \
-		--disable-libsanitizer \
-		--enable-languages=c,c++ \
-		--with-arch=${CLFS_ARM_ARCH} \
+		--with-arch=${CLFS_GCC_ARCH} \
 		--with-tune=${CLFS_GCC_TUNE} \
+		--enable-initfini-array \
+		--enable-languages=c,c++ \
+		--enable-shared \
+		--enable-tls \
+		--disable-multilib \
+		--disable-nls \
+		${COMMON_GCC_OPTS[@]} \
 		${CLFS_GCC_FLOAT_OPT} ${CLFS_GCC_FPU_OPT}
 
 	make && make install
@@ -394,3 +221,4 @@ echo export LD=\""${CLFS_TARGET}-ld\"" >> ~/.bashrc
 echo export RANLIB=\""${CLFS_TARGET}-ranlib\"" >> ~/.bashrc
 echo export READELF=\""${CLFS_TARGET}-readelf\"" >> ~/.bashrc
 echo export STRIP=\""${CLFS_TARGET}-strip\"" >> ~/.bashrc
+
