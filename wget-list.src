@@ -3,14 +3,14 @@ https://www.busybox.net/downloads/busybox-1.32.0.tar.bz2
 https://matt.ucc.asn.au/dropbear/releases/dropbear-2020.80.tar.bz2
 http://gcc.gnu.org/pub/gcc/releases/gcc-10.2.0/gcc-10.2.0.tar.xz
 http://ftp.gnu.org/gnu/gmp/gmp-6.2.0.tar.xz
-https://github.com/Mic92/iana-etc/releases/download/20200910/iana-etc-20200910.tar.gz
-http://www.kernel.org/pub/linux/kernel/v5.x/linux-5.8.9.tar.xz
+https://github.com/Mic92/iana-etc/releases/download/20201016/iana-etc-20201016.tar.gz
+http://www.kernel.org/pub/linux/kernel/v5.x/linux-5.9.1.tar.xz
 https://github.com/cross-lfs/bootscripts-embedded/archive/master.tar.gz
 http://ftp.gnu.org/gnu/mpc/mpc-1.2.0.tar.gz
 http://ftp.gnu.org/gnu/mpfr/mpfr-4.1.0.tar.xz
 http://www.musl-libc.org/releases/musl-1.2.1.tar.gz
 http://www.red-bean.com/~bos/netplug/netplug-1.2.9.2.tar.bz2
 http://patches.clfs.org/embedded-dev/netplug-1.2.9.2-fixes-1.patch
-https://ftp.denx.de/pub/u-boot/u-boot-2020.07.tar.bz2
+https://ftp.denx.de/pub/u-boot/u-boot-2020.10.tar.bz2
 https://www.hpl.hp.com/personal/Jean_Tourrilhes/Linux/wireless_tools.29.tar.gz
 http://downloads.sourceforge.net/libpng/zlib-1.2.11.tar.xz

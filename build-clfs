@@ -170,8 +170,8 @@ cat >> /home/clfs/.bashrc <<'EOF'
 export CLFS_HOST="$(echo ${MACHTYPE} | sed "s/-[^-]*/-cross/")"
 
 if [ "${CLFS_GCC_ARCH_HAS_FLOAT_AND_FPU}" = true ]; then
-export CLFS_GCC_FLOAT_OPT="--with-float=${CLFS_GCC_FLOAT}"
-export CLFS_GCC_FPU_OPT="--with-fpu=${CLFS_GCC_FPU}"
+	export CLFS_GCC_FLOAT_OPT="--with-float=${CLFS_GCC_FLOAT}"
+	export CLFS_GCC_FPU_OPT="--with-fpu=${CLFS_GCC_FPU}"
 fi
 
 export CLFS_CROSS_SYSROOT=${CLFS_CROSS_ROOT}/${CLFS_TARGET}
@@ -225,13 +225,13 @@ DEFINE "BUSYBOX"	"1.32.0"	"bz2"   "busybox-"		"busybox-"
 DEFINE "DROPBEAR"	"2020.80"	"bz2"   "dropbear-"		"dropbear-"
 DEFINE "GCC"		"10.2.0"	"xz"    "gcc-"			"gcc-"
 DEFINE "GMP"		"6.2.0"		"xz"    "gmp-"			"gmp-"
-DEFINE "IANA_ETC"	"20200910"	"gz"    "iana-etc-"		"iana-etc-"
-DEFINE "LINUX"		"5.8.9"		"xz"    "linux-"		"linux-"
+DEFINE "IANA_ETC"	"20201016"	"gz"    "iana-etc-"		"iana-etc-"
+DEFINE "LINUX"		"5.9.1"		"xz"    "linux-"		"linux-"
 DEFINE "MPC"		"1.2.0"		"gz"    "mpc-"			"mpc-"
 DEFINE "MPFR"		"4.1.0"		"xz"    "mpfr-"			"mpfr-"
 DEFINE "MUSL"		"1.2.1"		"gz"    "musl-"			"musl-"
 DEFINE "NETPLUG"	"1.2.9.2"	"bz2"   "netplug-"		"netplug-"
-DEFINE "UBOOT"		"2020.07"	"bz2"   "u-boot-"		"u-boot-"
+DEFINE "UBOOT"		"2020.10"	"bz2"   "u-boot-"		"u-boot-"
 DEFINE "WIRELESS_TOOLS"	"29"		"gz"    "wireless_tools." 	"wireless_tools."
 DEFINE "ZLIB"		"1.2.11"	"xz"    "zlib-"			"zlib-"
 
@@ -262,6 +262,9 @@ mkdir -pv ${CLFS_ROOT} ${CLFS_BOOT_ROOT} ${CLFS_CROSS_SYSROOT}
 #### this allows us to treat ${CLFS_CROSS_SYSROOT} and ${CLFS_CROSS_SYSROOT}/usr identically
 ln -fsv . ${CLFS_CROSS_SYSROOT}/usr
 
+cat > ${CLFS_ROOT}/etc/passwd << "EOF"
+root::0:0:root:/root:/bin/ash
+EOF
 
 ## Creating the group,passwd, and lastlog files
 cat > ${CLFS_ROOT}/etc/group << "EOF"
@@ -283,10 +286,6 @@ usb:x:14:
 cdrom:x:15:
 EOF
 
-cat > ${CLFS_ROOT}/etc/passwd << "EOF"
-root::0:0:root:/root:/bin/ash
-EOF
-
 touch ${CLFS_ROOT}/var/log/lastlog
 chmod -v 664 ${CLFS_ROOT}/var/log/lastlog
 
@@ -305,6 +304,7 @@ source ~/.bashrc
 ################################################################################
 ### V) Building and installing basic system packages ###########################
 ################################################################################
+${CLFS_SCRIPTS}/build-base-packages.sh
 ${CLFS_SCRIPTS}/build-core-packages.sh
 
 source ~/.bashrc

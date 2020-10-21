@@ -2,26 +2,73 @@
 
 # Simple script to list version numbers of critical development tools
 set -e
+export LC_ALL=C
+
+
 bash --version | head -n1 | cut -d" " -f2-4
 echo -n "Binutils: "; ld --version | head -n1 | cut -d" " -f3-
-bzip2 --version 2>&1 < /dev/null | head -n1 | cut -d" " -f1,6-
+
+
 echo -n "Coreutils: "; chown --version | head -n1 | cut -d")" -f2
-diff --version | head -n1
-find --version | head -n1
-gawk --version | head -n1
-gcc --version | head -n1
-ldd $(which ${SHELL}) | grep libc.so | cut -d ' ' -f 3 | ${SHELL} | head -n 1 \
-| cut -d ' ' -f 1-10
-grep --version | head -n1
+## compression / decomression
+tar --version | head -n1
+bzip2 --version 2>&1 < /dev/null | head -n1 | cut -d" " -f1,6-
 gzip --version | head -n1
+xz --version | head -n1
+
+
+sudo -V | head -n1
+find --version | head -n1
+
+
+## stream processing
+sed --version | head -n1
+gawk --version | head -n1
+if [ -h /usr/bin/awk ]; then
+	echo "/usr/bin/awk -> `readlink -f /usr/bin/awk`";
+elif [ -x /usr/bin/awk ]; then
+	echo awk is `/usr/bin/awk --version | head -n1`
+else
+	echo "awk not found"
+fi
+
+
+## gcc and friends
+gcc --version | head -n1
+g++ --version | head -n1
+ldd --version | head -n1 | cut -d" " -f2-  # glibc version
+echo "#include <ncurses.h>" | gcc -E - > /dev/null
+
+
+## additional building dependencies
 m4 --version | head -n1
 make --version | head -n1
-echo "#include <ncurses.h>" | gcc -E - > /dev/null
 patch --version | head -n1
-sed --version | head -n1
-sudo -V | head -n1
-tar --version | head -n1
-makeinfo --version | head -n1
+diff --version | head -n1
+makeinfo --version | head -n1  # texinfo version
+bison --version | head -n1
+if [ -h /usr/bin/yacc ]; then
+        echo "/usr/bin/yacc -> `readlink -f /usr/bin/yacc`";
+elif [ -x /usr/bin/yacc ]; then
+        echo yacc is `/usr/bin/yacc --version | head -n1`
+else
+        echo "yacc not found"
+fi
+
+
+## gcc test (can it build the minimal program)
+echo 'int main(){}' > dummy.c && g++ -o dummy dummy.c
+if [ -x dummy ]; then
+	echo "g++ compilation OK";
+else
+	echo "g++ compilation failed";
+fi
+rm -f dummy.c dummy
+
+
+## linux system version
+cat /proc/version
+
 
 echo "Finished checking host system capabilities!"
 

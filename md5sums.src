@@ -3,12 +3,14 @@ fc8d55e2f6096de8ff8171173b6f5087  binutils-2.35.tar.xz
 63527580ca47706b70046f87bb9d14fe  dropbear-2020.80.tar.bz2
 e9fd9b1789155ad09bcf3ae747596b50  gcc-10.2.0.tar.xz
 a325e3f09e6d91e62101e59f9bda3ec1  gmp-6.2.0.tar.xz
-e7f09d1c59f429d259fe941d9de6b421  iana-etc-20200910.tar.gz
-4d8b8af44c9d342624c036428da09ab6  linux-5.8.9.tar.xz
+199266e1aade09e199363679b70dfe4a  iana-etc-20201016.tar.gz
+199f037b5adc4ca158dc281b60a226f6  linux-5.9.1.tar.xz
+916eb26a5e52c3a45a1e467fc67c38d9  master.tar.gz
 2f1ce56ac775f2be090863f364931a03  mpc-1.2.0.tar.gz
 bdd3d5efba9c17da8d83a35ec552baef  mpfr-4.1.0.tar.xz
 2720bdbed739e94c4d7acdc91c0cd9d6  musl-1.2.1.tar.gz
+5c05a1071fe15a45b8b77557924aa73b  netplug-1.2.9.2-fixes-1.patch
 1d6db99536bdf875ce441f2c0e45ebf2  netplug-1.2.9.2.tar.bz2
-86e51eeccd15e658ad1df943a0edf622  u-boot-2020.07.tar.bz2
+14656f08aa73a8dbbde2424fe78bbe3b  u-boot-2020.10.tar.bz2
 e06c222e186f7cc013fd272d023710cb  wireless_tools.29.tar.gz
 85adef240c5f370b308da8c938951a68  zlib-1.2.11.tar.xz

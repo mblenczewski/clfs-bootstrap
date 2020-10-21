@@ -1,4 +1,5 @@
 #!/bin/sh
+## NOTE: not strictly posix-shell compatible, as 'local' is used in some funcs
 
 ################################################################################
 ### Defined Variables:
