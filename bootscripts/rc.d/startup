@@ -2,7 +2,7 @@
 
 # System Startup Script
 # 
-. /etc/rc.d/init.d/functions
+. /etc/rc.d/init.d/common.sh
 
 /bin/mount -t proc none /proc
 /bin/mount -t sysfs none /sys
@@ -64,7 +64,7 @@ ln -s ../tmp /var/tmp
 check_status
 
 echo -n "Setting hostname: "
-hostname -F /etc/HOSTNAME
+hostname -F /etc/hostname
 check_status
 
 echo -n "Cleaning up system: "

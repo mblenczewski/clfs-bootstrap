@@ -2,17 +2,17 @@
 #
 # DropBear SSH
 
-. /etc/rc.d/init.d/functions
+. /etc/rc.d/init.d/common.sh
 
-DSSKEY=/etc/dropbear/dropbear_dss_host_key
+ED25519KEY=/etc/dropbear/dropbear_ecdsa_host_key
 RSAKEY=/etc/dropbear/dropbear_rsa_host_key
 PIDFILE=/var/run/dropbear.pid
 
 case "$1" in
 start)
-	if [ ! -r "$DSSKEY" ]; then
-		echo -n "Generating DSS host key: "
-		dropbearkey -t dss -f "$DSSKEY" >/dev/null 2>&1
+	if [ ! -r "$ED25519KEY" ]; then
+		echo -n "Generating ECDSA host key: "
+		dropbearkey -t dss -f "$ED25519KEY" >/dev/null 2>&1
 		check_status
 	fi
 	if [ ! -r "$RSAKEY" ]; then

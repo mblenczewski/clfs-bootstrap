@@ -110,7 +110,6 @@ EXTRACT "IANA_ETC" IANA_ETC "core-pkg-iana-etc"
 
 ## Setting hostname
 echo ${CLFS_HOSTNAME} > ${CLFS_ROOT}/etc/hostname
-ln -s hostname /etc/HOSTNAME  # for compatibility
 
 
 ## Customising /etc/hosts

@@ -3,7 +3,7 @@
 # Syslog Startup Script
 #
 
-. /etc/rc.d/init.d/functions
+. /etc/rc.d/init.d/common.sh
 
 SYSLOG_ROTATE_SIZE=65536
 

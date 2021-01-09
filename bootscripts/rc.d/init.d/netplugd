@@ -2,7 +2,7 @@
 
 # Netplugd Startup Script
 
-. /etc/rc.d/init.d/functions
+. /etc/rc.d/init.d/common.sh
 
 case "$1" in
 start)

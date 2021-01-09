@@ -111,7 +111,7 @@
 /* ECDSA is significantly faster than RSA or DSS. Compiling in ECC
  * code (either ECDSA or ECDH) increases binary size - around 30kB
  * on x86-64 */
-#define DROPBEAR_ECDSA 1
+#define DROPBEAR_ECDSA 0
 
 /* Ed25519 is faster than ECDSA. Compiling in Ed25519 code increases
    binary size - around 7,5kB on x86-64 */
@@ -155,7 +155,7 @@
 #define DROPBEAR_DH_GROUP14_SHA1 0
 #define DROPBEAR_DH_GROUP14_SHA256 1
 #define DROPBEAR_DH_GROUP16 1
-#define DROPBEAR_ECDH 1
+#define DROPBEAR_ECDH 0
 #define DROPBEAR_CURVE25519 1
 
 /* When group1 is enabled it will only be allowed by Dropbear client

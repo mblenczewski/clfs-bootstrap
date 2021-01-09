@@ -3,7 +3,7 @@
 # System Shutdown Script
 #
 
-. /etc/rc.d/init.d/functions
+. /etc/rc.d/init.d/common.sh
 
 echo
 echo "System is going down for reboot or halt now."
