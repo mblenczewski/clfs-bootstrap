@@ -41,6 +41,7 @@ echo "#include <ncurses.h>" | gcc -E - > /dev/null
 
 
 ## additional building dependencies
+bc --version | head -n1
 m4 --version | head -n1
 make --version | head -n1
 patch --version | head -n1

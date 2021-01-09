@@ -2,8 +2,8 @@
 
 ################################################################################
 ### Defined Variables:
-### - CLFS                  : Root folder for entire CLFS build
-### - CLFS_BUILD            : Final tarball output directory
+### - CLFS                  : Root folder for CLFS build, holds final tarballs
+### - CLFS_BOOTSCRIPTS      : Root folder for CLFS bootscripts
 ### - CLFS_CONFIGS          : Additional configuration files for CLFS packages
 ### - CLFS_LOGS             : Package build log root
 ### - CLFS_SCRIPTS          : Build script root
@@ -17,14 +17,6 @@
 ################################################################################
 
 source ~/.bashrc
-
-
-NETPLUG () {
-	patch -Np1 -i ../netplug-1.2.9.2-fixes-1.patch
-
-	make && make DESTDIR=${CLFS_ROOT} install
-}
-EXTRACT "NETPLUG" NETPLUG "extra-pkg-netplug"
 
 
 WIRELESS_TOOLS () {

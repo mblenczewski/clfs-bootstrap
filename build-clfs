@@ -23,15 +23,16 @@ export CLFS_GCC_FLOAT="hard"
 export CLFS_GCC_FPU="crypto-neon-fp-armv8"
 export CLFS_GCC_TUNE="cortex-a53"
 
-export CLFS_CFLAGS="-O2 -pipe"
-export CLFS_CXXFLAGS="-O2 -pipe"
+export CLFS_CFLAGS="-Os -pipe"
+export CLFS_CXXFLAGS="-Os -pipe"
+export CLFS_MAKEFLAGS="-j$(nproc)"
 
 
 ################################################################################
 ### I) Preparation for the build ###############################################
 ################################################################################
 export CLFS=/mnt/clfs
-export CLFS_BUILD=${CLFS}/build
+export CLFS_BOOTSCRIPTS=${CLFS}/bootscripts
 export CLFS_CONFIGS=${CLFS}/configs
 export CLFS_LOGS=${CLFS}/logs
 export CLFS_SCRIPTS=${CLFS}/scripts
@@ -39,22 +40,22 @@ export CLFS_SOURCES=${CLFS}/sources
 export CLFS_ROOT=${CLFS}/rootfs
 export CLFS_BOOT_ROOT=${CLFS}/bootfs
 export CLFS_CROSS_ROOT=${CLFS}/crossfs
-export CLFS_CROSS_SYSROOT=${CLFS_CROSS_ROOT}  #### this assignment is temporary
+export CLFS_CROSS_SYSROOT=${CLFS_CROSS_ROOT}  # temporary assignment
 
 
 mkdir -pv ${CLFS}
-rm -rf ${CLFS_BUILD} ${CLFS_ROOT} ${CLFS_BOOT_ROOT} ${CLFS_CROSS_ROOT}
+rm -rf ${CLFS_ROOT} ${CLFS_BOOT_ROOT} ${CLFS_CROSS_ROOT}
 chmod 777 ${CLFS}
 
-mkdir -pv ${CLFS_BUILD} ${CLFS_CONFIGS} ${CLFS_LOGS} ${CLFS_SCRIPTS} ${CLFS_SOURCES}
-chmod -v a+wt ${CLFS_BUILD} ${CLFS_CONFIGS} ${CLFS_LOGS} ${CLFS_SCRIPTS} ${CLFS_SOURCES}
+mkdir -pv ${CLFS_BOOTSCRIPTS} ${CLFS_CONFIGS} ${CLFS_LOGS} ${CLFS_SCRIPTS} ${CLFS_SOURCES}
+chmod -v a+wt ${CLFS_BOOTSCRIPTS} ${CLFS_CONFIGS} ${CLFS_LOGS} ${CLFS_SCRIPTS} ${CLFS_SOURCES}
 
 
 FETCH_PKGS () {
 	rm -rf ${CLFS_SOURCES}/{md5sums,wget-list}
 
-	tr -d '\r' < wget-list.src > ${CLFS_SOURCES}/wget-list
-	tr -d '\r' < md5sums.src > ${CLFS_SOURCES}/md5sums
+	cp wget-list.src ${CLFS_SOURCES}/wget-list
+	cp md5sums.src ${CLFS_SOURCES}/md5sums
 
 	pushd ${CLFS_SOURCES} > /dev/null
 		wget --input-file=wget-list --continue
@@ -65,7 +66,8 @@ FETCH_PKGS
 
 
 ## Copying over scripts and additional config files
-rm -rf ${CLFS_CONFIGS}/* ${CLFS_SCRIPTS}/*
+rm -rf ${CLFS_BOOTSCRIPTS}/* ${CLFS_CONFIGS}/* ${CLFS_SCRIPTS}/*
+cp -rf bootscripts/* ${CLFS_BOOTSCRIPTS}
 cp -rf configs/* ${CLFS_CONFIGS}
 cp -rf scripts/* ${CLFS_SCRIPTS}
 chmod +x ${CLFS_SCRIPTS}/*
@@ -82,7 +84,7 @@ userdel clfs
 groupadd clfs
 useradd -s /bin/bash -g clfs -m -k /dev/null clfs
 
-chown -Rv clfs ${CLFS}
+chown -Rv clfs:clfs ${CLFS}
 
 mkdir -p /home/clfs
 
@@ -140,7 +142,7 @@ EOF
 
 cat >> /home/clfs/.bashrc <<EOF
 export CLFS=${CLFS}
-export CLFS_BUILD=${CLFS_BUILD}
+export CLFS_BOOTSCRIPTS=${CLFS_BOOTSCRIPTS}
 export CLFS_CONFIGS=${CLFS_CONFIGS}
 export CLFS_LOGS=${CLFS_LOGS}
 export CLFS_SCRIPTS=${CLFS_SCRIPTS}
@@ -159,9 +161,9 @@ export CLFS_GCC_FLOAT="${CLFS_GCC_FLOAT}"
 export CLFS_GCC_FPU="${CLFS_GCC_FPU}"
 export CLFS_GCC_TUNE="${CLFS_GCC_TUNE}"
 
-unset CFLAGS CXXFLAGS
 export CFLAGS="${CLFS_CFLAGS}"
 export CXXFLAGS="${CLFS_CXXFLAGS}"
+export MAKEFLAGS="${CLFS_MAKEFLAGS}"
 
 EOF
 
@@ -175,13 +177,13 @@ fi
 
 export CLFS_CROSS_SYSROOT=${CLFS_CROSS_ROOT}/${CLFS_TARGET}
 
-MAKEFLAGS="-j$(nproc --all)"
 LC_ALL=POSIX
 PATH=${CLFS_CROSS_ROOT}/bin:/bin:/usr/bin
-export MAKEFLAGS LC_ALL PATH
+export LC_ALL PATH
+
 EOF
 
-chown -Rf clfs /home/clfs
+chown -Rf clfs:clfs /home/clfs
 
 
 su - clfs <<'CLFS_USER_EOF'
@@ -218,21 +220,20 @@ DEFINE () {
 
 ###### "NAME"		"VERSION"	"COMP"	"ARCHIVE_PREFIX"	"DIRECTORY_PREFIX"
 ####################################################################################################
-DEFINE "BINUTILS"	"2.35"		"xz"    "binutils-"		"binutils-"
-DEFINE "BOOTSCRIPTS"	""		"gz"    "master"		"bootscripts-embedded-master"
-DEFINE "BUSYBOX"	"1.32.0"	"bz2"   "busybox-"		"busybox-"
-DEFINE "DROPBEAR"	"2020.80"	"bz2"   "dropbear-"		"dropbear-"
-DEFINE "GCC"		"10.2.0"	"xz"    "gcc-"			"gcc-"
-DEFINE "GMP"		"6.2.0"		"xz"    "gmp-"			"gmp-"
-DEFINE "IANA_ETC"	"20201016"	"gz"    "iana-etc-"		"iana-etc-"
-DEFINE "LINUX"		"5.9.1"		"xz"    "linux-"		"linux-"
-DEFINE "MPC"		"1.2.0"		"gz"    "mpc-"			"mpc-"
-DEFINE "MPFR"		"4.1.0"		"xz"    "mpfr-"			"mpfr-"
-DEFINE "MUSL"		"1.2.1"		"gz"    "musl-"			"musl-"
-DEFINE "NETPLUG"	"1.2.9.2"	"bz2"   "netplug-"		"netplug-"
-DEFINE "UBOOT"		"2020.10"	"bz2"   "u-boot-"		"u-boot-"
-DEFINE "WIRELESS_TOOLS"	"29"		"gz"    "wireless_tools." 	"wireless_tools."
-DEFINE "ZLIB"		"1.2.11"	"xz"    "zlib-"			"zlib-"
+DEFINE "BINUTILS"	"2.35.1"	"xz"	"binutils-"		"binutils-"
+DEFINE "BUSYBOX"	"1.33.0"	"bz2"	"busybox-"		"busybox-"
+DEFINE "DROPBEAR"	"2020.81"	"bz2"	"dropbear-"		"dropbear-"
+DEFINE "GCC"		"10.2.0"	"xz"	"gcc-"			"gcc-"
+DEFINE "GMP"		"6.2.1"		"xz"	"gmp-"			"gmp-"
+DEFINE "IANA_ETC"	"20210106"	"gz"	"iana-etc-"		"iana-etc-"
+DEFINE "LIBRESSL"	"3.3.1"		"gz"	"libressl-"		"libressl-"
+DEFINE "LINUX"		"5.10.6"	"xz"	"linux-"		"linux-"
+DEFINE "MPC"		"1.2.1"		"gz"	"mpc-"			"mpc-"
+DEFINE "MPFR"		"4.1.0"		"xz"	"mpfr-"			"mpfr-"
+DEFINE "MUSL"		"1.2.1"		"gz"	"musl-"			"musl-"
+DEFINE "UBOOT"		"2020.10"	"bz2"	"u-boot-"		"u-boot-"
+DEFINE "WIRELESS_TOOLS"	"29"		"gz"	"wireless_tools."	"wireless_tools."
+DEFINE "ZLIB"		"1.2.11"	"xz"	"zlib-"			"zlib-"
 
 
 ################################################################################
@@ -261,33 +262,6 @@ mkdir -pv ${CLFS_ROOT} ${CLFS_BOOT_ROOT} ${CLFS_CROSS_SYSROOT}
 #### this allows us to treat ${CLFS_CROSS_SYSROOT} and ${CLFS_CROSS_SYSROOT}/usr identically
 ln -fsv . ${CLFS_CROSS_SYSROOT}/usr
 
-cat > ${CLFS_ROOT}/etc/passwd << "EOF"
-root::0:0:root:/root:/bin/ash
-EOF
-
-## Creating the group,passwd, and lastlog files
-cat > ${CLFS_ROOT}/etc/group << "EOF"
-root:x:0:
-bin:x:1:
-sys:x:2:
-kmem:x:3:
-tty:x:4:
-tape:x:5:
-daemon:x:6:
-floppy:x:7:
-disk:x:8:
-lp:x:9:
-dialout:x:10:
-audio:x:11:
-video:x:12:
-utmp:x:13:
-usb:x:14:
-cdrom:x:15:
-EOF
-
-touch ${CLFS_ROOT}/var/log/lastlog
-chmod -v 664 ${CLFS_ROOT}/var/log/lastlog
-
 
 cd ${CLFS_SOURCES}
 
@@ -301,17 +275,10 @@ source ~/.bashrc
 
 
 ################################################################################
-### V) Building and installing basic system packages ###########################
+### V) Building and installing system packages #################################
 ################################################################################
 ${CLFS_SCRIPTS}/build-base-packages.sh
 ${CLFS_SCRIPTS}/build-core-packages.sh
-
-source ~/.bashrc
-
-
-################################################################################
-### VI) Building and installing additional system packages #####################
-################################################################################
 ${CLFS_SCRIPTS}/build-extra-packages.sh
 
 source ~/.bashrc
@@ -324,13 +291,17 @@ CLFS_USER_EOF
 chown -R root:root ${CLFS_ROOT} ${CLFS_BOOT_ROOT}
 chgrp 13 ${CLFS_ROOT}/var/log/lastlog
 
+BUILD_SUFFIX="$(date +'%Y%m%d')"
+
 cd ${CLFS_ROOT}
-tar cfj ${CLFS_BUILD}/clfs-rootfs.tar.xz *
-echo "Packaged CLFS rootfs: use 'tar pxf ${CLFS_BUILD}/clfs-rootfs.tar.xz -C targetdir' to unpack into a target directory"
+tar cfj ${CLFS}/clfs-rootfs-${BUILD_SUFFIX}.tar.xz *
+echo "Packaged CLFS rootfs: ${CLFS}/clfs-rootfs-${BUILD_SUFFIX}.tar.xz"
+echo "Unpack with 'tar -pxf ${CLFS}/clfs-rootfs-${BUILD_SUFFIX}.tar.xz'"
 
 cd ${CLFS_BOOT_ROOT}
-tar cfj ${CLFS_BUILD}/clfs-bootfs.tar.xz *
-echo "Packaged CLFS bootfs: use 'tar pxf ${CLFS_BUILD}/clfs-bootfs.tar.xz -C targetdir' to unpack into a target directory"
+tar cfj ${CLFS}/clfs-bootfs-${BUILD_SUFFIX}.tar.xz *
+echo "Packaged CLFS bootfs: ${CLFS}/clfs-bootfs-${BUILD_SUFFIX}.tar.xz"
+echo "Unpack with 'tar -pxf ${CLFS}/clfs-bootfs-${BUILD_SUFFIX}.tar.xz'"
 
 echo "Finished and packaged CLFS system!"
 

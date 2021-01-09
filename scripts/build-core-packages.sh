@@ -2,8 +2,8 @@
 
 ################################################################################
 ### Defined Variables:
-### - CLFS                  : Root folder for entire CLFS build
-### - CLFS_BUILD            : Final tarball output directory
+### - CLFS                  : Root folder for CLFS build, holds final tarballs
+### - CLFS_BOOTSCRIPTS      : Root folder for CLFS bootscripts
 ### - CLFS_CONFIGS          : Additional configuration files for CLFS packages
 ### - CLFS_LOGS             : Package build log root
 ### - CLFS_SCRIPTS          : Build script root
@@ -17,6 +17,21 @@
 ################################################################################
 
 source ~/.bashrc
+
+
+## TODO: get libressl to cross compile and ignore /usr/lib/libgcc in favour
+##       of libgcc in sysroot
+LIBRESSL () {
+	./configure \
+		--prefix=/usr \
+		--build=${CLFS_HOST} \
+		--host=${CLFS_TARGET} \
+		--enable-shared \
+		--with-openssldir=/etc/ssl
+
+	make && make DESTDIR=${CLFS_ROOT} install
+}
+#EXTRACT "LIBRESSL" LIBRESSL "base-pkg-libressl"
 
 
 BUSYBOX () {
@@ -42,7 +57,7 @@ cat > ${CLFS_ROOT}/etc/profile <<'EOF'
 export PATH=/bin:/usr/bin
 
 if [ `id -u` -eq 0 ] ; then
-	PATH=/bin:/sbin:/usr/bin:/usr/sbin
+	export PATH=/bin:/sbin:/usr/bin:/usr/sbin
 	unset HISTFILE
 fi
 
@@ -55,8 +70,36 @@ export HISTFILESIZE=1000
 export PAGER='/bin/more '
 export EDITOR='/bin/vi'
 
+COMMON_FLAGS="-O2 -march=native -mtune=native -pipe"
+CFLAGS="${COMMON_FLAGS}"
+CXXFLAGS="${COMMON_FLAGS}"
+
+MAKEFLAGS="-j$(nproc)"
+
 # End /etc/profile
 EOF
+
+
+BINUTILS () {
+	../configure \
+		--prefix=/usr \
+		--enable-gold \
+		--enable-ld=default \
+		--enable-plugins \
+		--enable-shared \
+		--disable-werror \
+		--with-system-zlib
+
+	make tooldir=/usr
+	make tooldir=/usr DESTDIR=${CLFS_SYSROOT} install
+}
+#EXTRACT "BINUTILS" BINUTILS "core-pkg-binutils"
+
+
+GCC () {
+	echo "foobar"
+}
+#EXTRACT "GCC" GCC "core-pkg-gcc"
 
 
 IANA_ETC () {
@@ -67,6 +110,7 @@ EXTRACT "IANA_ETC" IANA_ETC "core-pkg-iana-etc"
 
 ## Setting hostname
 echo ${CLFS_HOSTNAME} > ${CLFS_ROOT}/etc/hostname
+ln -s hostname /etc/HOSTNAME  # for compatibility
 
 
 ## Customising /etc/hosts
@@ -74,6 +118,7 @@ cat > ${CLFS_ROOT}/etc/hosts <<'EOF'
 # Begin /etc/hosts (no network card version)
 
 127.0.0.1 localhost
+::1 localhost
 
 # End /etc/hosts (no network card version)
 EOF
@@ -84,6 +129,10 @@ mkdir -pv ${CLFS_ROOT}/etc/network/if-{post-{up,down},pre-{up,down},up,down}.d
 mkdir -pv ${CLFS_ROOT}/usr/share/udhcpc
 
 cat > ${CLFS_ROOT}/etc/network/interfaces <<'EOF'
+auto lo
+iface lo inet loopback
+iface lo inet6 loopback
+
 auto eth0
 iface eth0 inet dhcp
 iface eth0 inet6 dhcp

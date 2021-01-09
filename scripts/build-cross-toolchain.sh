@@ -2,8 +2,8 @@
 
 ################################################################################
 ### Defined Variables:
-### - CLFS                  : Root folder for entire CLFS build
-### - CLFS_BUILD            : Final tarball output directory
+### - CLFS                  : Root folder for CLFS build, holds final tarballs
+### - CLFS_BOOTSCRIPTS      : Root folder for CLFS bootscripts
 ### - CLFS_CONFIGS          : Additional configuration files for CLFS packages
 ### - CLFS_LOGS             : Package build log root
 ### - CLFS_SCRIPTS          : Build script root
@@ -34,6 +34,19 @@ COMMON_GCC_OPTS=(\
 	--disable-libmudflap \
 	--disable-libsanitizer \
 )
+
+
+LINUX () {
+	make mrproper
+
+	make ARCH=${CLFS_ARCH} headers_check
+	make ARCH=${CLFS_ARCH} headers
+
+	find usr/include -name '.*' -delete
+	rm usr/include/Makefile
+	cp -r usr/include ${CLFS_CROSS_SYSROOT}
+}
+EXTRACT "LINUX" LINUX "toolchain-linux-headers"
 
 
 BINUTILS_PASS1 () {
@@ -101,19 +114,6 @@ GCC_PASS1 () {
         	`dirname $(${CLFS_TARGET}-gcc -print-libgcc-file-name)`/install-tools/include/limits.h
 }
 EXTRACT "GCC" GCC_PASS1 "toolchain-gcc-pass1"
-
-
-LINUX () {
-	make mrproper
-
-	make ARCH=${CLFS_ARCH} headers_check
-	make ARCH=${CLFS_ARCH} headers
-
-	find usr/include -name '.*' -delete
-	rm usr/include/Makefile
-	cp -r usr/include ${CLFS_CROSS_SYSROOT}
-}
-EXTRACT "LINUX" LINUX "toolchain-linux-headers"
 
 
 MUSL () {
@@ -194,8 +194,8 @@ GCC_PASS2 () {
 		--with-build-sysroot=${CLFS_CROSS_SYSROOT} \
 		--build=${CLFS_HOST} \
 		--host=${CLFS_HOST} \
-		CC_FOR_TARGET=${CLFS_TARGET}-gcc \
 		--target=${CLFS_TARGET} \
+		CC_FOR_TARGET=${CLFS_TARGET}-gcc \
 		--with-arch=${CLFS_GCC_ARCH} \
 		--with-tune=${CLFS_GCC_TUNE} \
 		--enable-initfini-array \
@@ -213,11 +213,11 @@ EXTRACT "GCC" GCC_PASS2 "toolchain-gcc-pass2"
 
 
 ## Setting toolchain variables
-echo export CC=\""${CLFS_TARGET}-gcc\"" >> ~/.bashrc
-echo export CXX=\""${CLFS_TARGET}-g++\"" >> ~/.bashrc
+echo export CC=\""${CLFS_TARGET}-gcc --sysroot=${CLFS_ROOT}\"" >> ~/.bashrc
+echo export CXX=\""${CLFS_TARGET}-g++ --sysroot=${CLFS_ROOT}\"" >> ~/.bashrc
 echo export AR=\""${CLFS_TARGET}-ar\"" >> ~/.bashrc
 echo export AS=\""${CLFS_TARGET}-as\"" >> ~/.bashrc
-echo export LD=\""${CLFS_TARGET}-ld\"" >> ~/.bashrc
+echo export LD=\""${CLFS_TARGET}-ld --sysroot=${CLFS_ROOT}\"" >> ~/.bashrc
 echo export RANLIB=\""${CLFS_TARGET}-ranlib\"" >> ~/.bashrc
 echo export READELF=\""${CLFS_TARGET}-readelf\"" >> ~/.bashrc
 echo export STRIP=\""${CLFS_TARGET}-strip\"" >> ~/.bashrc

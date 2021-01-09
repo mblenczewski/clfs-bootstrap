@@ -2,8 +2,8 @@
 
 ################################################################################
 ### Defined Variables:
-### - CLFS                  : Root folder for entire CLFS build
-### - CLFS_BUILD            : Final tarball output directory
+### - CLFS                  : Root folder for CLFS build, holds final tarballs
+### - CLFS_BOOTSCRIPTS      : Root folder for CLFS bootscripts
 ### - CLFS_CONFIGS          : Additional configuration files for CLFS packages
 ### - CLFS_LOGS             : Package build log root
 ### - CLFS_SCRIPTS          : Build script root
@@ -17,6 +17,35 @@
 ################################################################################
 
 source ~/.bashrc
+
+
+## Allows logging in as root without password
+cat > ${CLFS_ROOT}/etc/passwd << "EOF"
+root::0:0:root:/root:/bin/ash
+EOF
+
+## Creating the group,passwd, and lastlog files
+cat > ${CLFS_ROOT}/etc/group << "EOF"
+root:x:0:
+bin:x:1:
+sys:x:2:
+kmem:x:3:
+tty:x:4:
+tape:x:5:
+daemon:x:6:
+floppy:x:7:
+disk:x:8:
+lp:x:9:
+dialout:x:10:
+audio:x:11:
+video:x:12:
+utmp:x:13:
+usb:x:14:
+cdrom:x:15:
+EOF
+
+touch ${CLFS_ROOT}/var/log/lastlog
+chmod -v 664 ${CLFS_ROOT}/var/log/lastlog
 
 
 ## Copying libgcc from the xgcc we built earlier. This is necessary as gcc can
@@ -47,7 +76,7 @@ MUSL () {
 		--host=${CLFS_TARGET} \
 		--target=${CLFS_TARGET} \
 		--enable-warnings \
-		-disable-static
+		--enable-optimize
 
 	make && make DESTDIR=${CLFS_ROOT} install
 
@@ -63,7 +92,7 @@ LIBSTDCXX () {
 	cd libstdcxx-build
 
 	../libstdc++-v3/configure \
-		CXXFLAGS="-g -O2 -pipe -D_GNU_SOURCE" \
+		CXXFLAGS="-g -O2 -D_GNU_SOURCE" \
 		--prefix=/usr \
 		--build=${CLFS_HOST} \
 		--host=${CLFS_TARGET} \
@@ -92,13 +121,6 @@ ZLIB () {
 EXTRACT "ZLIB" ZLIB "base-pkg-zlib"
 
 
-### Making the system bootable
-## /etc/fstab file
-cat > ${CLFS_ROOT}/etc/fstab <<'EOF'
-# file-system  mount-point  type   options          dump  fsck
-EOF
-
-
 LINUX () {
 	make mrproper
 
@@ -112,7 +134,7 @@ LINUX () {
 		cp arch/${CLFS_ARCH}/boot/dts/$DTS ${CLFS_BOOT_ROOT}
 	done
 }
-EXTRACT "LINUX" LINUX "base-pkg-linux"
+EXTRACT "LINUX" LINUX "boot-pkg-linux"
 
 
 UBOOT () {
@@ -124,15 +146,21 @@ UBOOT () {
 
 	cp u-boot.bin ${CLFS_BOOT_ROOT}
 }
-EXTRACT "UBOOT" UBOOT "base-pkg-uboot"
+EXTRACT "UBOOT" UBOOT "boot-pkg-uboot"
 
 
-BOOTSCRIPTS () {
-        make DESTDIR=${CLFS_ROOT} install-bootscripts
-        make DESTDIR=${CLFS_ROOT} install-dropbear
-        make DESTDIR=${CLFS_ROOT} install-netplug
-}
-EXTRACT "BOOTSCRIPTS" BOOTSCRIPTS "base-pkg-bootscripts"
+## Installing bootscripts
+cd ${CLFS_BOOTSCRIPTS}
+
+make DESTDIR=${CLFS_ROOT} install-bootscripts install-dropbear
+
+cd ${CLFS_SOURCES}
+
+
+## Creating /etc/fstab file
+cat > ${CLFS_ROOT}/etc/fstab <<'EOF'
+# file-system  mount-point  type   options          dump  fsck
+EOF
 
 
 ## Creating /etc/inittab
@@ -142,16 +170,11 @@ cat > ${CLFS_ROOT}/etc/inittab <<'EOF'
 ::sysinit:/etc/rc.d/startup
 
 tty1::respawn:/sbin/getty 38400 tty1
-tty2::respawn:/sbin/getty 38400 tty2
-tty3::respawn:/sbin/getty 38400 tty3
-tty4::respawn:/sbin/getty 38400 tty4
-tty5::respawn:/sbin/getty 38400 tty5
-tty6::respawn:/sbin/getty 38400 tty6
-
-# Put a getty on the serial line (for a terminal).  Uncomment this line if
-# you're using a serial console on ttyS0, or uncomment and adjust it if using a
-# serial console on a different serial port.
-#::respawn:/sbin/getty -L ttyS0 115200 vt100
+#tty2::respawn:/sbin/getty 38400 tty2
+#tty3::respawn:/sbin/getty 38400 tty3
+#tty4::respawn:/sbin/getty 38400 tty4
+#tty5::respawn:/sbin/getty 38400 tty5
+#tty6::respawn:/sbin/getty 38400 tty6
 
 ::shutdown:/etc/rc.d/shutdown
 ::ctrlaltdel:/sbin/reboot
