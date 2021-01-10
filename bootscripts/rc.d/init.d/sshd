@@ -4,20 +4,20 @@
 
 . /etc/rc.d/init.d/common.sh
 
-ED25519KEY=/etc/dropbear/dropbear_ecdsa_host_key
+ED25519KEY=/etc/dropbear/dropbear_ed25519_host_key
 RSAKEY=/etc/dropbear/dropbear_rsa_host_key
 PIDFILE=/var/run/dropbear.pid
 
 case "$1" in
 start)
 	if [ ! -r "$ED25519KEY" ]; then
-		echo -n "Generating ECDSA host key: "
-		dropbearkey -t dss -f "$ED25519KEY" >/dev/null 2>&1
+		echo -n "Generating ED25519 host key: "
+		dropbearkey -t ed25519 -f "$ED25519KEY" >/dev/null 2>&1
 		check_status
 	fi
 	if [ ! -r "$RSAKEY" ]; then
 		echo -n "Generating RSA host key: "
-		dropbearkey -t rsa -f "$RSAKEY" >/dev/null 2>&1
+		dropbearkey -t rsa -s 4096 -f "$RSAKEY" >/dev/null 2>&1
 		check_status
 	fi
 	if [ -r "$PIDFILE" ]; then
