@@ -14,14 +14,23 @@ CONFIRM
 ### 0) Parameters ##############################################################
 ################################################################################
 export CLFS_HOSTNAME="raspi"
+
+# arm
 export CLFS_TARGET="arm-linux-musleabihf"
 export CLFS_ARCH="arm"
-export CLFS_ARCH_DTS_LIST=("bcm2837-rpi-3-b.dtb")
+export CLFS_DTS_LIST=("bcm2836-rpi-2-b.dtb" "bcm2837-rpi-3-b.dtb")
+export CLFS_KERNEL="zImage"
 export CLFS_GCC_ARCH="armv8-a+crc+crypto"
-export CLFS_GCC_ARCH_HAS_FLOAT_AND_FPU='true'
-export CLFS_GCC_FLOAT="hard"
-export CLFS_GCC_FPU="crypto-neon-fp-armv8"
-export CLFS_GCC_TUNE="cortex-a53"
+export CLFS_GCC_OPTS="--with-tune=cortex-a53 --with-float=hard --with-fpu=crypto-neon-fp-armv8"
+
+# aarch64
+#export CLFS_TARGET="aarch64-linux-musl"
+#export CLFS_ARCH="arm64"
+#export CLFS_DTS_LIST=("broadcom/bcm2837-rpi-3-b.dtb")
+#export CLFS_KERNEL="Image"
+#export CLFS_GCC_ARCH="armv8-a"
+#export CLFS_GCC_OPTS=""
+
 
 export CLFS_CFLAGS="-Os -pipe"
 export CLFS_CXXFLAGS="-Os -pipe"
@@ -113,7 +122,8 @@ EXTRACT () {
 	local PKG_ARCHIVE=${!PKG_ARCHIVE}
 
 	echo "Extracting package ${PKG_VANITY_NAME} (ver. ${PKG_VER}) source: '${PKG_ARCHIVE}' -> '${PKG_DIR}'"
-	pushd ${CLFS_SOURCES} > /dev/null
+	local OLD=$(pwd)
+	cd ${CLFS_SOURCES}
 
 	local STDOUT_LOG="${PKG_VANITY_NAME}.stdout.log"
 	local STDERR_LOG="${PKG_VANITY_NAME}.stderr.log"
@@ -135,7 +145,7 @@ EXTRACT () {
 	rm -rf ${PKG_DIR}
 
 	rm "${TMP_OUT}" "${TMP_ERR}" > /dev/null
-	popd > /dev/null
+	cd $OLD
 }
 
 EOF
@@ -154,12 +164,10 @@ export CLFS_CROSS_ROOT=${CLFS_CROSS_ROOT}
 export CLFS_HOSTNAME="${CLFS_HOSTNAME}"
 export CLFS_TARGET="${CLFS_TARGET}"
 export CLFS_ARCH="${CLFS_ARCH}"
-export CLFS_ARCH_DTS_LIST=(${CLFS_ARCH_DTS_LIST[@]})
+export CLFS_DTS_LIST=(${CLFS_DTS_LIST[@]})
+export CLFS_KERNEL="${CLFS_KERNEL}"
 export CLFS_GCC_ARCH="${CLFS_GCC_ARCH}"
-export CLFS_GCC_ARCH_HAS_FLOAT_AND_FPU="${CLFS_GCC_ARCH_HAS_FLOAT_AND_FPU}"
-export CLFS_GCC_FLOAT="${CLFS_GCC_FLOAT}"
-export CLFS_GCC_FPU="${CLFS_GCC_FPU}"
-export CLFS_GCC_TUNE="${CLFS_GCC_TUNE}"
+export CLFS_GCC_OPTS="${CLFS_GCC_OPTS}"
 
 export CFLAGS="${CLFS_CFLAGS}"
 export CXXFLAGS="${CLFS_CXXFLAGS}"
@@ -169,11 +177,6 @@ EOF
 
 cat >> /home/clfs/.bashrc <<'EOF'
 export CLFS_HOST="$(echo ${MACHTYPE} | sed "s/-[^-]*/-cross/")"
-
-if [ "${CLFS_GCC_ARCH_HAS_FLOAT_AND_FPU}" = true ]; then
-	export CLFS_GCC_FLOAT_OPT="--with-float=${CLFS_GCC_FLOAT}"
-	export CLFS_GCC_FPU_OPT="--with-fpu=${CLFS_GCC_FPU}"
-fi
 
 export CLFS_CROSS_SYSROOT=${CLFS_CROSS_ROOT}/${CLFS_TARGET}
 
@@ -230,7 +233,7 @@ DEFINE "LIBRESSL"	"3.3.1"		"gz"	"libressl-"		"libressl-"
 DEFINE "LINUX"		"5.10.6"	"xz"	"linux-"		"linux-"
 DEFINE "MPC"		"1.2.1"		"gz"	"mpc-"			"mpc-"
 DEFINE "MPFR"		"4.1.0"		"xz"	"mpfr-"			"mpfr-"
-DEFINE "MUSL"		"1.2.1"		"gz"	"musl-"			"musl-"
+DEFINE "MUSL"		"1.2.2"		"gz"	"musl-"			"musl-"
 DEFINE "UBOOT"		"2020.10"	"bz2"	"u-boot-"		"u-boot-"
 DEFINE "WIRELESS_TOOLS"	"29"		"gz"	"wireless_tools."	"wireless_tools."
 DEFINE "ZLIB"		"1.2.11"	"xz"	"zlib-"			"zlib-"

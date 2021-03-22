@@ -88,7 +88,7 @@ GCC_PASS1 () {
 		--host=${CLFS_HOST} \
 		--target=${CLFS_TARGET} \
 		--with-arch=${CLFS_GCC_ARCH} \
-		--with-tune=${CLFS_GCC_TUNE} \
+		${CLFS_GCC_OPTS} \
 		--with-newlib \
 		--without-headers \
 		--enable-initfini-array \
@@ -104,8 +104,7 @@ GCC_PASS1 () {
 		--disable-nls \
 		--disable-shared \
 		--disable-threads \
-		${COMMON_GCC_OPTS[@]} \
-		${CLFS_GCC_FLOAT_OPT} ${CLFS_GCC_FPU_OPT}
+		${COMMON_GCC_OPTS[@]}
 
 	make all-gcc all-target-libgcc && make install-gcc install-target-libgcc
 
@@ -197,15 +196,14 @@ GCC_PASS2 () {
 		--target=${CLFS_TARGET} \
 		CC_FOR_TARGET=${CLFS_TARGET}-gcc \
 		--with-arch=${CLFS_GCC_ARCH} \
-		--with-tune=${CLFS_GCC_TUNE} \
+		${CLFS_GCC_OPTS} \
 		--enable-initfini-array \
 		--enable-languages=c,c++ \
 		--enable-shared \
 		--enable-tls \
 		--disable-multilib \
 		--disable-nls \
-		${COMMON_GCC_OPTS[@]} \
-		${CLFS_GCC_FLOAT_OPT} ${CLFS_GCC_FPU_OPT}
+		${COMMON_GCC_OPTS[@]}
 
 	make && make install
 }

@@ -1,0 +1,65 @@
+#!/bin/sh
+
+# DATE=$(date +'%Y%m%d')
+DATE=20210322
+
+ROOTFS=/mnt/clfs/clfs-rootfs-$DATE.tar.xz
+[ -d /tmp/rootfs ] && rm -rf /tmp/rootfs
+mkdir /tmp/rootfs
+
+BOOTFS=/mnt/clfs/clfs-bootfs-$DATE.tar.xz
+[ -d /tmp/bootfs ] && rm -rf /tmp/bootfs
+mkdir /tmp/bootfs
+
+KERNEL=zImage
+INITRD=initrd.cpio.gz
+DTB=bcm2837-rpi-3-b.dtb
+
+DISK=hda.img
+
+echo "Creating qemu rootfs disk"
+[ ! -f $DISK ] && dd if=/dev/zero of=$DISK bs=1M count=4096
+mkfs.ext4 $DISK
+
+mount -o loop $DISK /tmp/rootfs
+
+echo "Extracting rootfs : $ROOTFS"
+tar pxf $ROOTFS -C /tmp/rootfs
+sync
+
+umount /tmp/rootfs
+
+#echo "Creating initrd image"
+#find . -print0 | cpio --null -o --format=newc | gzip -9 > /tmp/$INITRD
+
+echo "Extracting bootfs : $BOOTFS"
+
+tar pxf $BOOTFS -C /tmp/bootfs
+#cp -r /mnt/raspi-boot/* .
+
+echo "Booting virtual machine"
+
+# qemu raspi3b REQUIRES aarch64-only binaries
+qemu-system-aarch64 \
+	-M raspi3b -m 1024 -smp 4 \
+	-kernel /tmp/bootfs/$KERNEL \
+	-dtb /tmp/bootfs/$DTB
+	-append "earlyprintk=serial,ttyS0 console=ttyAMA0 root=/dev/mmcblk0 rw" \
+	-drive if=none,file=$DISK,format=raw,id=hdroot \
+	-device sd-card,drive=hdroot \
+	-netdev user,id=mynet0 \
+	-device usb-kbd \
+	-nographic -no-reboot
+
+# qemu internal arm invocation
+#qemu-system-arm \
+#	-display none -vga none \
+#	-chardev socket,id=mon,path=/var/tmp/avo_qemu_sock_y2xg63/qemu-29492-monitor.sock -mon chardev=mon,mode=control \
+#	-machine raspi2 \
+#	-chardev socket,id=console,path=/var/tmp/avo_qemu_sock_y2xg6349/qemu-29492-console.sock,server=on,wait=off \
+#	-serial chardev:console \
+#	-kernel /var/tmp/.test_arm_raspi2_uart0/boot/kernel7.img \
+#	-dtb /var/tmp/.test_arm_raspi2_uart0/boot/bcm2709-rpi-2-b.dtb \
+#	-append printk.time=0 earlycon=pl011,0x3f201000 console=ttyAMA0 root=/dev/mmcblk0p2 rootwait dwc_otg.fiq_fsm_enable=0 \
+#	-device usb-kbd
+

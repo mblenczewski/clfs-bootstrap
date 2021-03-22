@@ -8,7 +8,7 @@ dd1e71d7994608ebdce5726239ab170d  iana-etc-20210106.tar.gz
 3be0e13f03206658de07d5857c224d91  linux-5.10.6.tar.xz
 9f16c976c25bb0f76b50be749cd7a3a8  mpc-1.2.1.tar.gz
 bdd3d5efba9c17da8d83a35ec552baef  mpfr-4.1.0.tar.xz
-2720bdbed739e94c4d7acdc91c0cd9d6  musl-1.2.1.tar.gz
+aed8ae9e2b0898151b36a204088292dd  musl-1.2.2.tar.gz
 14656f08aa73a8dbbde2424fe78bbe3b  u-boot-2020.10.tar.bz2
 e06c222e186f7cc013fd272d023710cb  wireless_tools.29.tar.gz
 85adef240c5f370b308da8c938951a68  zlib-1.2.11.tar.xz

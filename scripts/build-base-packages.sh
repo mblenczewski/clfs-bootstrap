@@ -124,13 +124,13 @@ EXTRACT "ZLIB" ZLIB "base-pkg-zlib"
 LINUX () {
 	make mrproper
 
-	cp ${CLFS_CONFIGS}/linux-kernel-config .config
+	cp ${CLFS_CONFIGS}/${CLFS_ARCH}-kernel-config .config
 
 	make ARCH=${CLFS_ARCH} CROSS_COMPILE=${CLFS_TARGET}- && \
 	make ARCH=${CLFS_ARCH} CROSS_COMPILE=${CLFS_TARGET}- INSTALL_MOD_PATH=${CLFS_ROOT} modules_install
 
-	cp arch/${CLFS_ARCH}/boot/zImage ${CLFS_BOOT_ROOT}
-	for DTS in ${CLFS_ARCH_DTS_LIST[@]}; do
+	cp arch/${CLFS_ARCH}/boot/$CLFS_KERNEL ${CLFS_BOOT_ROOT}
+	for DTS in ${CLFS_DTS_LIST[@]}; do
 		cp arch/${CLFS_ARCH}/boot/dts/$DTS ${CLFS_BOOT_ROOT}
 	done
 }

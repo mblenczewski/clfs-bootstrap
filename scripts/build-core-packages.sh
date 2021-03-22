@@ -19,6 +19,23 @@
 source ~/.bashrc
 
 
+COMMON_BINUTILS_OPTS=(\
+	--enable-deterministic-archives \
+	--disable-separate-code \
+)
+
+
+COMMON_GCC_OPTS=(\
+	--enable-libstdcxx-time=rt \
+	--disable-assembly \
+	--disable-bootstrap \
+	--disable-gnu-indirect-function \
+	--disable-libmpx \
+	--disable-libmudflap \
+	--disable-libsanitizer \
+)
+
+
 ## TODO: get libressl to cross compile and ignore /usr/lib/libgcc in favour
 ##       of libgcc in sysroot
 LIBRESSL () {
@@ -32,6 +49,65 @@ LIBRESSL () {
 	make && make DESTDIR=${CLFS_ROOT} install
 }
 #EXTRACT "LIBRESSL" LIBRESSL "base-pkg-libressl"
+
+
+BINUTILS () {
+	mkdir -v binutils-build
+	cd binutils-build
+
+	../configure \
+		--prefix=/usr \
+		--with-build-sysroot=${CLFS_ROOT} \
+		--build=${CLFS_HOST} \
+		--host=${CLFS_TARGET} \
+		--target=${CLFS_TARGET} \
+		--enable-gold \
+		--enable-ld=default \
+		--enable-plugins \
+		--enable-shared \
+		--disable-multilib \
+		--disable-nls \
+		--disable-werror \
+		--with-system-zlib \
+		${COMMON_BINUTILS_OPTS[@]}
+
+	make tooldir=/usr
+	make tooldir=/usr DESTDIR=${CLFS_ROOT} install
+}
+#EXTRACT "BINUTILS" BINUTILS "core-pkg-binutils"
+
+
+GCC () {
+	mkdir -v gcc-build
+	cd gcc-build
+
+	../configure \
+		--prefix=/usr \
+		--with-build-sysroot=${CLFS_ROOT} \
+		--build=${CLFS_HOST} \
+		--host=${CLFS_TARGET} \
+		--target=${CLFS_TARGET} \
+		${CLFS_GCC_OPTS} \
+		--enable-languages=c,c++ \
+		--disable-multilib \
+		--disable-nls \
+		--with-system-zlib \
+		${COMMON_GCC_OPTS[@]}
+
+	make
+	make DESTDIR=${CLFS_ROOT} install
+	rm -rf ${CLFS_ROOT}/usr/lib/gcc/$(${CLFS_TARGET}-gcc -dumpmachine)/${GCC_VER}/include-fixed/bits
+
+	ln -sv ../usr/bin/cpp ${CLFS_ROOT}/lib
+
+	install -v -dm755 ${CLFS_ROOT}/usr/lib/bfd-plugins
+	ln -sfv ../../libexec/gcc/$(${CLFS_TARGET}-gcc -dumpmachine)/${GCC_VER}/liblto_plugin.so \
+		${CLFS_ROOT}/usr/lib/bfd-plugins
+
+	mkdir -pv ${CLFS_ROOT}/usr/share/gdb/auto-load/usr/lib
+	mv -v ${CLFS_ROOT}/usr/lib/*gdb.py ${CLFS_ROOT}/usr/share/gdb/auto-load/usr/lib
+}
+#EXTRACT "GCC" GCC "core-pkg-gcc"
 
 
 BUSYBOX () {
@@ -78,28 +154,6 @@ MAKEFLAGS="-j$(nproc)"
 
 # End /etc/profile
 EOF
-
-
-BINUTILS () {
-	../configure \
-		--prefix=/usr \
-		--enable-gold \
-		--enable-ld=default \
-		--enable-plugins \
-		--enable-shared \
-		--disable-werror \
-		--with-system-zlib
-
-	make tooldir=/usr
-	make tooldir=/usr DESTDIR=${CLFS_SYSROOT} install
-}
-#EXTRACT "BINUTILS" BINUTILS "core-pkg-binutils"
-
-
-GCC () {
-	echo "foobar"
-}
-#EXTRACT "GCC" GCC "core-pkg-gcc"
 
 
 IANA_ETC () {
