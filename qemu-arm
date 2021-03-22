@@ -14,6 +14,7 @@ mkdir /tmp/bootfs
 KERNEL=zImage
 INITRD=initrd.cpio.gz
 DTB=bcm2836-rpi-2-b.dtb
+#DTB=bcm2837-rpi-3-b.dtb
 
 DISK=hda.img
 
@@ -38,18 +39,6 @@ tar pxf $BOOTFS -C /tmp/bootfs
 #cp -r /mnt/raspi-boot/* .
 
 echo "Booting virtual machine"
-
-# qemu raspi3b REQUIRES aarch64-only binaries
-#qemu-system-aarch64 \
-#	-M raspi3b -m 1024 \
-#	-dtb /tmp/bootfs/bcm2837-rpi-3-b.dtb \
-#	-kernel /tmp/bootfs/zImage \
-#	-initrd /tmp/initrd.cpio.gz \
-#	-append "earlyprintk=serial,ttyS0 console=ttyAMA0 root=/dev/mmcblk0" \
-#	-drive if=none,file=$DISK,format=raw,id=hdroot \
-#	-device sd-card,drive=hdroot \
-#	-nographic -no-reboot
-
 # qemur raspi2b REQUIRES arm-only binaries
 qemu-system-arm \
 	-M raspi2b -m 1024 -smp 4 \

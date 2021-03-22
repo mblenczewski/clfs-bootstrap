@@ -282,7 +282,7 @@ source ~/.bashrc
 ################################################################################
 ${CLFS_SCRIPTS}/build-base-packages.sh
 ${CLFS_SCRIPTS}/build-core-packages.sh
-${CLFS_SCRIPTS}/build-extra-packages.sh
+#${CLFS_SCRIPTS}/build-extra-packages.sh
 
 source ~/.bashrc
 
