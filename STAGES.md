@@ -9,7 +9,7 @@ Process:
    versions, package names)
 3. Create clfs build user + setup user bashrc with build configuration
 4. Create clfs build directory + subdirectories
-5. Pull in required sources and check source signatures
+5. Download required sources and check source signatures
 6. Copy required source package build scripts to build directory
 6. Create linux standard filesystem layout for rootfs
 
@@ -138,6 +138,52 @@ Process:
 
 ## Stage 2 : The Minimal Build Environment
 Should be rebuilt every run
+
+Required Packages:
+1. Linux
+2. Libc (musl)
+3. Libc++ (libstdc++)
+4. Zlib
+5. Busybox (toybox?)
+6. Sysconfig
+7. IANA
+8. Bootscripts
+9. Binutils
+10. GMP
+11. MPC
+12. MPFR
+13. GCC
+14. Make
+15. Uboot
+
+Process:
+1. Extract linux header for target arch
+2. Cross compile libc
+3. Cross compile libc++
+4. Cross compile zlib
+5. Cross compile busybox (toybox?)
+6. Install system configuration files
+7. Install IANA data
+8. Install bootscripts
+9. Cross compile binutils
+10. Cross compile GCC
+11. Cross compile make
+12. Cross compile linux kernel for target arch
+13. Cross compile uboot for target arch
+
+010-linux-headers.sh
+020-libc.sh
+030-libc++.sh
+040-zlib.sh
+050-busybox.sh
+060-sysconf.sh
+070-iana.sh
+080-init.sh
+090-binutils.sh
+100-gcc.sh
+110-make.sh
+120-linux.sh
+130-uboot.sh
 
 ## Stage 3 : The Base System
 Should be rebuilt every run

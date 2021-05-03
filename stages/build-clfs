@@ -53,7 +53,7 @@ export CLFS_CROSS_SYSROOT=${CLFS_CROSS_ROOT}  # temporary assignment
 
 
 mkdir -pv ${CLFS}
-rm -rf ${CLFS_ROOT} ${CLFS_BOOT_ROOT} ${CLFS_CROSS_ROOT}
+rm -rf ${CLFS_ROOT} ${CLFS_BOOT_ROOT}
 chmod 777 ${CLFS}
 
 mkdir -pv ${CLFS_BOOTSCRIPTS} ${CLFS_CONFIGS} ${CLFS_LOGS} ${CLFS_SCRIPTS} ${CLFS_SOURCES}
@@ -71,7 +71,7 @@ FETCH_PKGS () {
 		md5sum -c md5sums
 	popd > /dev/null
 }
-FETCH_PKGS
+#FETCH_PKGS
 
 
 ## Copying over scripts and additional config files
@@ -243,7 +243,7 @@ DEFINE "ZLIB"		"1.2.11"	"xz"	"zlib-"			"zlib-"
 ### III) Preparation for the build #############################################
 ################################################################################
 ## Creating a FSH-compliant directory structure in CLFS_ROOT
-mkdir -pv ${CLFS_ROOT}/{bin,boot,dev,etc,home,lib,media,mnt,opt,proc,root,run,sbin,srv,tmp}
+mkdir -pv ${CLFS_ROOT}/{bin,boot,dev,etc,home,lib,media,mnt,opt,proc,root,run,sbin,srv,sys,tmp}
 
 mkdir -pv ${CLFS_ROOT}/etc/{opt,}
 mkdir -pv ${CLFS_ROOT}/lib/{modules,}
@@ -305,6 +305,8 @@ cd ${CLFS_BOOT_ROOT}
 tar cfj ${CLFS}/clfs-bootfs-${BUILD_SUFFIX}.tar.xz *
 echo "Packaged CLFS bootfs: ${CLFS}/clfs-bootfs-${BUILD_SUFFIX}.tar.xz"
 echo "Unpack with 'tar -pxf ${CLFS}/clfs-bootfs-${BUILD_SUFFIX}.tar.xz'"
+
+chown -R clfs:clfs $CLFS_ROOT $CLFS_BOOT_ROOT
 
 echo "Finished and packaged CLFS system!"
 

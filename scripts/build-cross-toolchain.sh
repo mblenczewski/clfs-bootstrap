@@ -19,6 +19,10 @@
 source ~/.bashrc
 
 
+TIMESTAMP=$CLFS_CROSS_ROOT/successful-build
+[ -f $TIMESTAMP ] && exit 0
+
+
 COMMON_BINUTILS_OPTS=(\
 	--enable-deterministic-archives \
 	--disable-separate-code \
@@ -220,3 +224,5 @@ echo export RANLIB=\""${CLFS_TARGET}-ranlib\"" >> ~/.bashrc
 echo export READELF=\""${CLFS_TARGET}-readelf\"" >> ~/.bashrc
 echo export STRIP=\""${CLFS_TARGET}-strip\"" >> ~/.bashrc
 
+
+touch $TIMESTAMP

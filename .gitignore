@@ -1,1 +1,3 @@
-hda.img
+**/*.img
+**/*.qcow2
+test/
